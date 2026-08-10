@@ -13,7 +13,7 @@ export async function GET() {
       );
     }
 
-    const status = getStreamStatus();
+    const status = getStreamStatus(user.userId);
 
     return NextResponse.json(status);
   } catch (error) {

@@ -13,10 +13,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json().catch(() => ({}));
-    const videoId = body.videoId;
-
-    const result = stopStream(videoId);
+    const result = stopStream(user.userId);
 
     if (!result.success) {
       return NextResponse.json(

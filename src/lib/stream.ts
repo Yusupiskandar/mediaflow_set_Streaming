@@ -4,6 +4,7 @@ import fs from 'fs';
 import { findFileById, getMediaDir } from './files';
 
 interface StreamSession {
+  userId: number;
   process: ChildProcess;
   videoId: string;
   videoName: string;
@@ -11,7 +12,7 @@ interface StreamSession {
   streamKey: string;
 }
 
-const activeStreams = new Map<string, StreamSession>();
+const activeStreams = new Map<number, StreamSession>();
 const DEFAULT_STREAM_URL = 'rtmp://a.rtmp.youtube.com/live2';
 
 function getFFmpegPath(): string {
@@ -33,9 +34,9 @@ function getFFmpegPath(): string {
 
 const FFMPEG_PATH = getFFmpegPath();
 
-export function startStream(videoId: string, streamKey: string, streamUrl?: string): { success: boolean; message: string; pid?: number } {
-  if (activeStreams.size > 0) {
-    return { success: false, message: 'Sudah ada stream yang berjalan' };
+export function startStream(userId: number, videoId: string, streamKey: string, streamUrl?: string): { success: boolean; message: string; pid?: number } {
+  if (activeStreams.has(userId)) {
+    return { success: false, message: 'Anda sudah memiliki stream yang sedang berjalan. Matikan terlebih dahulu.' };
   }
 
   if (!streamKey || streamKey.trim() === '') {
@@ -84,15 +85,16 @@ export function startStream(videoId: string, streamKey: string, streamUrl?: stri
 
     ffmpegProcess.on('error', (error) => {
       console.error('[FFmpeg spawn error]:', error.message);
-      activeStreams.delete(videoId);
+      activeStreams.delete(userId);
     });
 
     ffmpegProcess.on('exit', (code, signal) => {
       console.log(`[FFmpeg] Process exited with code ${code}, signal ${signal}`);
-      activeStreams.delete(videoId);
+      activeStreams.delete(userId);
     });
 
     const session: StreamSession = {
+      userId,
       process: ffmpegProcess,
       videoId,
       videoName: file.name,
@@ -100,7 +102,7 @@ export function startStream(videoId: string, streamKey: string, streamUrl?: stri
       streamKey: streamKey.substring(0, 8) + '****',
     };
 
-    activeStreams.set(videoId, session);
+    activeStreams.set(userId, session);
 
     return {
       success: true,
@@ -115,13 +117,8 @@ export function startStream(videoId: string, streamKey: string, streamUrl?: stri
   }
 }
 
-export function stopStream(videoId?: string): { success: boolean; message: string } {
-  if (activeStreams.size === 0) {
-    return { success: false, message: 'Tidak ada stream yang berjalan' };
-  }
-
-  const targetId = videoId || activeStreams.keys().next().value;
-  const session = activeStreams.get(targetId!);
+export function stopStream(userId: number): { success: boolean; message: string } {
+  const session = activeStreams.get(userId);
 
   if (!session) {
     return { success: false, message: 'Stream tidak ditemukan' };
@@ -131,7 +128,7 @@ export function stopStream(videoId?: string): { success: boolean; message: strin
     // Gunakan SIGINT untuk graceful stop (seperti Ctrl+C)
     // FFmpeg akan menutup koneksi RTMP secara rapi
     session.process.kill('SIGINT');
-    activeStreams.delete(targetId!);
+    activeStreams.delete(userId);
 
     return {
       success: true,
@@ -145,16 +142,17 @@ export function stopStream(videoId?: string): { success: boolean; message: strin
   }
 }
 
-export function getStreamStatus(): { isStreaming: boolean; streams: Array<{ videoId: string; videoName: string; startedAt: string; streamKey: string }> } {
-  const streams = Array.from(activeStreams.values()).map((s) => ({
-    videoId: s.videoId,
-    videoName: s.videoName,
-    startedAt: s.startedAt.toISOString(),
-    streamKey: s.streamKey,
-  }));
+export function getStreamStatus(userId: number): { isStreaming: boolean; streams: Array<{ videoId: string; videoName: string; startedAt: string; streamKey: string }> } {
+  const session = activeStreams.get(userId);
+  const streams = session ? [{
+    videoId: session.videoId,
+    videoName: session.videoName,
+    startedAt: session.startedAt.toISOString(),
+    streamKey: session.streamKey,
+  }] : [];
 
   return {
-    isStreaming: activeStreams.size > 0,
+    isStreaming: !!session,
     streams,
   };
 }

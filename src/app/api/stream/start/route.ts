@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = startStream(videoId, streamKey, streamUrl);
+    const result = startStream(user.userId, videoId, streamKey, streamUrl);
 
     if (!result.success) {
       return NextResponse.json(
