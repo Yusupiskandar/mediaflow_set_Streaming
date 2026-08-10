@@ -10,6 +10,9 @@
 !.yarn/releases
 !.yarn/versions
 
+# ffmpeg-static binaries (will be downloaded on npm install)
+/node_modules/ffmpeg-static/ffmpeg
+
 # testing
 /coverage
 
