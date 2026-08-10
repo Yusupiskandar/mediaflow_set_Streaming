@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server';
 import { hashPassword, generateToken, setAuthCookie } from '@/lib/auth';
-import { createUser, getUserByUsername } from '@/lib/db';
+import { createUser, getUserByUsername, getUserCount } from '@/lib/db';
 import type { AuthPayload } from '@/types';
 
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
+
+    const userCount = getUserCount();
+    if (userCount > 0) {
+      return NextResponse.json(
+        { error: 'Registrasi telah ditutup.' },
+        { status: 403 }
+      );
+    }
 
     if (!username || !password) {
       return NextResponse.json(

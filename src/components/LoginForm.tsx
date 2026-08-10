@@ -3,11 +3,10 @@
 import { useState } from 'react';
 
 interface LoginFormProps {
-  mode: 'login' | 'register';
   onSuccess: () => void;
 }
 
-export default function LoginForm({ mode, onSuccess }: LoginFormProps) {
+export default function LoginForm({ onSuccess }: LoginFormProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,7 +18,7 @@ export default function LoginForm({ mode, onSuccess }: LoginFormProps) {
     setLoading(true);
 
     try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const endpoint = '/api/auth/login';
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,7 +84,7 @@ export default function LoginForm({ mode, onSuccess }: LoginFormProps) {
         disabled={loading}
         className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
       >
-        {loading ? 'Loading...' : mode === 'login' ? 'Login' : 'Register'}
+        {loading ? 'Loading...' : 'Login'}
       </button>
     </form>
   );

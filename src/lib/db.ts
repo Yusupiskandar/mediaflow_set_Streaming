@@ -53,6 +53,22 @@ export function getUserByUsername(username: string) {
   return db.prepare('SELECT * FROM users WHERE username = ?').get(username);
 }
 
+export function getUserCount(): number {
+  const db = getDb();
+  const result = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+  return result.count;
+}
+
+export function getAllUsers() {
+  const db = getDb();
+  return db.prepare('SELECT id, username, created_at FROM users ORDER BY id ASC').all();
+}
+
+export function deleteUser(id: number) {
+  const db = getDb();
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+}
+
 export function createUser(username: string, passwordHash: string) {
   const db = getDb();
   const result = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(username, passwordHash);

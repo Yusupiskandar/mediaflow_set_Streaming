@@ -13,15 +13,17 @@ export default function BrowsePage() {
   const [currentDir, setCurrentDir] = useState('');
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    fetchFiles();
+    fetchUserAndFiles();
   }, [currentDir]);
 
-  const fetchFiles = async () => {
+  const fetchUserAndFiles = async () => {
     setLoading(true);
     try {
-      const [filesRes, foldersRes] = await Promise.all([
+      const [userRes, filesRes, foldersRes] = await Promise.all([
+        fetch('/api/auth/me'),
         fetch(`/api/files?dir=${encodeURIComponent(currentDir)}`),
         fetch(`/api/folders?dir=${encodeURIComponent(currentDir)}`),
       ]);
@@ -31,13 +33,18 @@ export default function BrowsePage() {
         return;
       }
 
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        setIsAdmin(userData.user?.userId === 1);
+      }
+
       const filesData = await filesRes.json();
       const foldersData = await foldersRes.json();
 
       setFiles(filesData.files || []);
       setFolders(foldersData.folders || []);
     } catch (error) {
-      console.error('Error fetching files:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -79,6 +86,14 @@ export default function BrowsePage() {
             </div>
 
             <div className="flex items-center space-x-4">
+              {isAdmin && (
+                <button
+                  onClick={() => router.push('/admin/users')}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-md transition-colors border border-gray-600"
+                >
+                  Admin Panel
+                </button>
+              )}
               <button
                 onClick={() => router.push('/stream')}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center space-x-2"
@@ -154,7 +169,7 @@ export default function BrowsePage() {
         <UploadDialog
           currentDir={currentDir}
           onClose={() => setShowUpload(false)}
-          onUploadComplete={fetchFiles}
+          onUploadComplete={fetchUserAndFiles}
         />
       )}
     </div>
