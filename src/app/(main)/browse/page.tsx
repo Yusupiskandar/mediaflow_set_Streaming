@@ -8,7 +8,7 @@ import type { MediaFile, FolderItem } from '@/types';
 
 type DirectoryData =
   | { status: 'unauthorized' }
-  | { status: 'ok'; files: MediaFile[]; folders: FolderItem[]; isAdmin: boolean };
+  | { status: 'ok'; files: MediaFile[]; folders: FolderItem[]; isAdmin: boolean; expiresAt: string | null };
 
 async function loadDirectory(dir: string): Promise<DirectoryData> {
   const [userRes, filesRes, foldersRes] = await Promise.all([
@@ -30,7 +30,29 @@ async function loadDirectory(dir: string): Promise<DirectoryData> {
     files: filesData.files || [],
     folders: foldersData.folders || [],
     isAdmin: userData.user?.userId === 1,
+    expiresAt: userData.user?.expiresAt ?? null,
   };
+}
+
+const EXPIRING_SOON_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Info masa sewa untuk akun biasa. Admin utama tidak punya masa sewa. */
+function RentalBadge({ expiresAt }: { expiresAt: string }) {
+  const [now] = useState(() => Date.now());
+  const soon = Date.parse(expiresAt) - now <= EXPIRING_SOON_MS;
+  const label = new Date(expiresAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+
+  return (
+    <span
+      className={`hidden sm:inline-flex px-3 py-1 text-sm rounded-full border ${
+        soon ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-gray-100 text-gray-600 border-gray-200'
+      }`}
+      title="Akun otomatis nonaktif setelah masa sewa berakhir"
+    >
+      {soon ? 'Sewa segera habis: ' : 'Sewa aktif s/d '}
+      {label}
+    </span>
+  );
 }
 
 export default function BrowsePage() {
@@ -41,6 +63,7 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -57,6 +80,7 @@ export default function BrowsePage() {
         setFiles(result.files);
         setFolders(result.folders);
         setIsAdmin(result.isAdmin);
+        setExpiresAt(result.expiresAt);
       })
       .catch((error) => console.error('Error fetching data:', error))
       .finally(() => {
@@ -112,6 +136,7 @@ export default function BrowsePage() {
             </div>
 
             <div className="flex items-center space-x-4">
+              {!isAdmin && expiresAt && <RentalBadge expiresAt={expiresAt} />}
               {isAdmin && (
                 <button
                   onClick={() => router.push('/admin/users')}

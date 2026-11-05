@@ -1,6 +1,8 @@
 import { ChildProcess, spawn } from 'child_process';
 import { findFileById, getAbsoluteFilePath } from './media/files';
 import { FFMPEG_PATH } from './ffmpeg';
+import { getUserById } from './db';
+import { isAccountExpired } from './subscription';
 
 interface StreamSession {
   userId: number;
@@ -22,11 +24,43 @@ interface StreamSession {
 // sehingga proses ffmpeg yang masih berjalan tetap bisa dihentikan.
 const globalForStream = globalThis as unknown as {
   mediaflowStreams?: Map<number, StreamSession>;
-  mediaflowAdminStops?: Set<number>;
+  mediaflowStopNotices?: Map<number, StopNotice>;
+  mediaflowExpiryWatcher?: NodeJS.Timeout;
 };
 const activeStreams = (globalForStream.mediaflowStreams ??= new Map<number, StreamSession>());
-// Akun yang live-nya baru dihentikan admin. Dipakai sekali untuk memberi tahu pemilik akun.
-const adminStoppedUsers = (globalForStream.mediaflowAdminStops ??= new Set<number>());
+// Alasan live dihentikan oleh sistem/admin. Dikirim sekali ke pemilik akun lalu dihapus.
+type StopNotice = 'admin' | 'expired';
+const stopNotices = (globalForStream.mediaflowStopNotices ??= new Map<number, StopNotice>());
+
+const EXPIRY_CHECK_INTERVAL_MS = 15_000;
+
+/** Hentikan live milik akun yang masa sewanya sudah habis. */
+export function stopExpiredStreams(): number {
+  let stopped = 0;
+  for (const userId of [...activeStreams.keys()]) {
+    const user = getUserById(userId);
+    if (!user || isAccountExpired(user)) {
+      console.log(`[Sewa] Masa sewa user ${userId} habis, live dihentikan otomatis.`);
+      stopStream(userId, 'expired');
+      stopped++;
+    }
+  }
+  return stopped;
+}
+
+/** Jalankan pengecekan masa sewa berkala selama masih ada live yang berjalan. */
+function ensureExpiryWatcher() {
+  if (globalForStream.mediaflowExpiryWatcher) return;
+  const timer = setInterval(() => {
+    try {
+      stopExpiredStreams();
+    } catch (error) {
+      console.error('[Sewa] Gagal mengecek masa sewa:', error);
+    }
+  }, EXPIRY_CHECK_INTERVAL_MS);
+  timer.unref?.();
+  globalForStream.mediaflowExpiryWatcher = timer;
+}
 
 function maskStreamKey(key: string): string {
   const trimmed = key.trim();
@@ -131,7 +165,7 @@ function spawnFFmpegProcess(userId: number, videoPath: string, rtmpDestination: 
 }
 
 export function startStream(userId: number, videoId: string, streamKey: string, streamUrl?: string): { success: boolean; message: string; pid?: number } {
-  adminStoppedUsers.delete(userId);
+  stopNotices.delete(userId);
 
   if (activeStreams.has(userId)) {
     return { success: false, message: 'Anda sudah memiliki stream yang sedang berjalan. Matikan terlebih dahulu.' };
@@ -174,6 +208,7 @@ export function startStream(userId: number, videoId: string, streamKey: string, 
     }, 60000);
 
     activeStreams.set(userId, session);
+    ensureExpiryWatcher();
 
     return {
       success: true,
@@ -188,7 +223,7 @@ export function startStream(userId: number, videoId: string, streamKey: string, 
   }
 }
 
-export type StopReason = 'user' | 'admin';
+export type StopReason = 'user' | StopNotice;
 
 export function stopStream(userId: number, reason: StopReason = 'user'): { success: boolean; message: string } {
   const session = activeStreams.get(userId);
@@ -199,10 +234,10 @@ export function stopStream(userId: number, reason: StopReason = 'user'): { succe
 
   session.isStopping = true;
 
-  if (reason === 'admin') {
-    adminStoppedUsers.add(userId);
+  if (reason === 'user') {
+    stopNotices.delete(userId);
   } else {
-    adminStoppedUsers.delete(userId);
+    stopNotices.set(userId, reason);
   }
 
   if (session.reconnectTimer) {
@@ -243,6 +278,12 @@ export function stopStream(userId: number, reason: StopReason = 'user'): { succe
   }
 }
 
+function takeStopNotice(userId: number): StopNotice | null {
+  const notice = stopNotices.get(userId) ?? null;
+  stopNotices.delete(userId);
+  return notice;
+}
+
 export function getStreamStatus(userId: number): {
   isStreaming: boolean;
   streams: Array<{
@@ -253,7 +294,8 @@ export function getStreamStatus(userId: number): {
     isReconnecting?: boolean;
     reconnectAttempts?: number;
   }>;
-  stoppedByAdmin: boolean;
+  /** Diisi sekali setelah live dihentikan admin atau karena masa sewa habis. */
+  stopReason: StopNotice | null;
 } {
   const session = activeStreams.get(userId);
   const streams = session ? [{
@@ -268,7 +310,7 @@ export function getStreamStatus(userId: number): {
   return {
     isStreaming: !!session,
     // Hanya dikirim sekali, setelah itu dihapus supaya pesan tidak muncul terus.
-    stoppedByAdmin: !session && adminStoppedUsers.delete(userId),
+    stopReason: session ? null : takeStopNotice(userId),
     streams,
   };
 }

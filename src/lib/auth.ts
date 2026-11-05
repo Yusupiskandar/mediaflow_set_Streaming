@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { getUserById } from '@/lib/db';
+import { isAccountExpired } from '@/lib/subscription';
 import type { AuthPayload } from '@/types';
 
 const COOKIE_NAME = 'mediaflow_token';
@@ -60,7 +61,10 @@ export async function getCurrentUser(): Promise<AuthPayload | null> {
   const user = getUserById(payload.userId);
   if (!user) return null;
 
-  return { userId: user.id, username: user.username };
+  // Masa sewa habis = akun nonaktif, semua akses langsung terputus.
+  if (isAccountExpired(user)) return null;
+
+  return { userId: user.id, username: user.username, expiresAt: user.expires_at };
 }
 
 export function setAuthCookie(token: string) {

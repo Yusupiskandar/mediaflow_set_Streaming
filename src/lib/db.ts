@@ -48,6 +48,25 @@ function initializeDb(db: Database.Database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  migrateDb(db);
+}
+
+/** Tambahan kolom untuk database yang dibuat versi lama. */
+function migrateDb(db: Database.Database) {
+  const userColumns = (db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
+
+  // Masa sewa akun: waktu ISO (UTC). NULL = tanpa batas.
+  if (!userColumns.includes('expires_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN expires_at TEXT');
+  }
+}
+
+export interface UserRecord {
+  id: number;
+  username: string;
+  created_at: string;
+  expires_at: string | null;
 }
 
 export function getUserByUsername(username: string) {
@@ -61,16 +80,22 @@ export function getUserCount(): number {
   return result.count;
 }
 
-export function getAllUsers() {
+export function getAllUsers(): UserRecord[] {
   const db = getDb();
-  return db.prepare('SELECT id, username, created_at FROM users ORDER BY id ASC').all();
+  return db.prepare('SELECT id, username, created_at, expires_at FROM users ORDER BY id ASC').all() as UserRecord[];
 }
 
-export function getUserById(id: number) {
+export function getUserById(id: number): UserRecord | undefined {
   const db = getDb();
-  return db.prepare('SELECT id, username FROM users WHERE id = ?').get(id) as
-    | { id: number; username: string }
+  return db.prepare('SELECT id, username, created_at, expires_at FROM users WHERE id = ?').get(id) as
+    | UserRecord
     | undefined;
+}
+
+/** Atur masa sewa akun. `null` = tanpa batas. */
+export function setUserExpiry(id: number, expiresAt: string | null) {
+  const db = getDb();
+  db.prepare('UPDATE users SET expires_at = ? WHERE id = ?').run(expiresAt, id);
 }
 
 export function deleteUser(id: number) {
@@ -82,9 +107,11 @@ export function deleteUser(id: number) {
   })();
 }
 
-export function createUser(username: string, passwordHash: string) {
+export function createUser(username: string, passwordHash: string, expiresAt: string | null = null) {
   const db = getDb();
-  const result = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(username, passwordHash);
+  const result = db
+    .prepare('INSERT INTO users (username, password_hash, expires_at) VALUES (?, ?, ?)')
+    .run(username, passwordHash, expiresAt);
   return result.lastInsertRowid;
 }
 

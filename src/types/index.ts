@@ -52,6 +52,8 @@ export interface FolderItem {
 export interface AuthPayload {
   userId: number;
   username: string;
+  /** Batas masa sewa (ISO UTC), null = tanpa batas. Tidak disimpan di token. */
+  expiresAt?: string | null;
 }
 
 export interface SubtitleEntry {

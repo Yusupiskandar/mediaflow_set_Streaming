@@ -14,11 +14,13 @@ interface StreamStatus {
     isReconnecting?: boolean;
     reconnectAttempts?: number;
   }>;
-  stoppedByAdmin?: boolean;
+  stopReason?: 'admin' | 'expired' | null;
 }
 
-async function loadStreamStatus(): Promise<StreamStatus | null> {
+async function loadStreamStatus(): Promise<StreamStatus | 'unauthorized' | null> {
   const res = await fetch('/api/stream/status');
+  // 401 = sesi berakhir atau masa sewa akun habis.
+  if (res.status === 401) return 'unauthorized';
   return res.ok ? res.json() : null;
 }
 
@@ -78,9 +80,12 @@ export default function StreamPage() {
     isStreamingRef.current = data.isStreaming;
     setStatus(data);
 
-    if (data.stoppedByAdmin) {
+    if (data.stopReason === 'admin') {
       setSuccess('');
       setError('Live Anda dihentikan oleh admin.');
+    } else if (data.stopReason === 'expired') {
+      setSuccess('');
+      setError('Live Anda dihentikan karena masa sewa akun sudah habis.');
     }
 
     // Start timer jika streaming baru dimulai
@@ -101,11 +106,15 @@ export default function StreamPage() {
   const fetchStatus = useCallback(async () => {
     try {
       const data = await loadStreamStatus();
+      if (data === 'unauthorized') {
+        router.push('/login');
+        return;
+      }
       if (data) applyStatus(data);
     } catch (err) {
       console.error('Error fetching status:', err);
     }
-  }, [applyStatus]);
+  }, [applyStatus, router]);
 
   useEffect(() => {
     let active = true;
@@ -127,7 +136,12 @@ export default function StreamPage() {
 
     loadStreamStatus()
       .then((data) => {
-        if (active && data) applyStatus(data);
+        if (!active) return;
+        if (data === 'unauthorized') {
+          router.push('/login');
+          return;
+        }
+        if (data) applyStatus(data);
       })
       .catch((err) => console.error('Error fetching status:', err));
 

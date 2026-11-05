@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, hashPassword } from '@/lib/auth';
 import { getAllUsers, createUser, getUserByUsername } from '@/lib/db';
 import { getAllLiveStreams } from '@/lib/stream';
+import { isAccountExpired, parseExpiryInput } from '@/lib/subscription';
 
 export async function GET() {
   try {
@@ -13,8 +14,9 @@ export async function GET() {
     }
 
     const liveStreams = getAllLiveStreams();
-    const users = (getAllUsers() as { id: number; username: string; created_at: string }[]).map((user) => ({
+    const users = getAllUsers().map((user) => ({
       ...user,
+      isExpired: isAccountExpired(user),
       // null = sedang tidak live
       live: liveStreams.get(user.id) ?? null,
     }));
@@ -34,7 +36,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const { username, password } = await request.json();
+    const { username, password, expiresAt } = await request.json();
+
+    const expiry = parseExpiryInput(expiresAt);
+    if (!expiry.ok) {
+      return NextResponse.json({ error: expiry.error }, { status: 400 });
+    }
+    if (expiry.value && Date.parse(expiry.value) <= Date.now()) {
+      return NextResponse.json({ error: 'Masa sewa harus di waktu yang akan datang' }, { status: 400 });
+    }
 
     if (!username || !password) {
       return NextResponse.json({ error: 'Username dan password harus diisi' }, { status: 400 });
@@ -54,7 +64,7 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hashPassword(password);
-    const userId = createUser(username, passwordHash);
+    const userId = createUser(username, passwordHash, expiry.value);
 
     return NextResponse.json({ message: 'User berhasil dibuat', user: { id: userId, username } });
   } catch (error) {
