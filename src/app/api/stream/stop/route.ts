@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { stopStream } from '@/lib/stream';
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const user = await getCurrentUser();
 

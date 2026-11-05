@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
-import path from 'path';
 import { Readable } from 'stream';
 import { getCurrentUser } from '@/lib/auth';
-import { findFileById, getMimeType, getMediaDir } from '@/lib/files';
+import { findFileById, getMimeType, getAbsoluteFilePath } from '@/lib/media/files';
 
 export async function GET(
   request: Request,
@@ -20,7 +19,7 @@ export async function GET(
     }
 
     const { fileId } = await params;
-    const file = findFileById(fileId);
+    const file = findFileById(user.userId, fileId);
 
     if (!file) {
       return NextResponse.json(
@@ -29,7 +28,7 @@ export async function GET(
       );
     }
 
-    const filePath = path.join(getMediaDir(), file.path);
+    const filePath = getAbsoluteFilePath(user.userId, file);
 
     if (!fs.existsSync(filePath)) {
       return NextResponse.json(

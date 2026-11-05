@@ -1,12 +1,14 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
-const DB_PATH = path.join(process.cwd(), 'mediaflow.db');
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'data', 'mediaflow.db');
 
 let db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (!db) {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
@@ -32,7 +34,7 @@ function initializeDb(db: Database.Database) {
       duration_seconds REAL NOT NULL,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, file_id),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS upload_sessions (
@@ -64,9 +66,20 @@ export function getAllUsers() {
   return db.prepare('SELECT id, username, created_at FROM users ORDER BY id ASC').all();
 }
 
+export function getUserById(id: number) {
+  const db = getDb();
+  return db.prepare('SELECT id, username FROM users WHERE id = ?').get(id) as
+    | { id: number; username: string }
+    | undefined;
+}
+
 export function deleteUser(id: number) {
   const db = getDb();
-  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  // Database lama dibuat tanpa ON DELETE CASCADE, jadi data terkait dihapus manual.
+  db.transaction(() => {
+    db.prepare('DELETE FROM playback_progress WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  })();
 }
 
 export function createUser(username: string, passwordHash: string) {

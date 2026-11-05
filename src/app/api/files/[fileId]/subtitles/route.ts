@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { findFileById, getSubtitlesForFile } from '@/lib/files';
-import { parseSubtitle } from '@/lib/subtitle';
+import { findFileById, getSubtitlesForFile } from '@/lib/media/files';
+import { parseSubtitle } from '@/lib/media/subtitle';
 
 export async function GET(
   request: Request,
@@ -18,7 +18,7 @@ export async function GET(
     }
 
     const { fileId } = await params;
-    const file = findFileById(fileId);
+    const file = findFileById(user.userId, fileId);
 
     if (!file) {
       return NextResponse.json(
@@ -27,11 +27,11 @@ export async function GET(
       );
     }
 
-    const subtitles = getSubtitlesForFile(file.path);
+    const subtitles = getSubtitlesForFile(user.userId, file.path);
 
     const subtitlesWithContent = subtitles.map(sub => ({
       ...sub,
-      entries: parseSubtitle(sub.path, sub.format),
+      entries: parseSubtitle(user.userId, sub.path, sub.format),
     }));
 
     return NextResponse.json({ subtitles: subtitlesWithContent });

@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MediaFlow
 
-## Getting Started
+Media server berbasis web: browse dan putar video/audio, upload file, serta live stream video secara loop ke YouTube atau tujuan RTMP lain.
 
-First, run the development server:
+Rencana pengembangan menjadi SaaS: [docs/konsep-saas.md](docs/konsep-saas.md).
+
+## Stack
+
+- Next.js 16 (App Router), React 19, Tailwind CSS 4
+- SQLite (`better-sqlite3`)
+- Autentikasi JWT di cookie (`jsonwebtoken`, `bcryptjs`)
+- `ffmpeg-static` untuk thumbnail dan live stream
+
+## Menjalankan
 
 ```bash
+npm install
+cp .env.example .env.local   # lalu isi JWT_SECRET
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka http://localhost:3000. Saat pertama kali dijalankan, halaman `/setup` meminta pembuatan akun admin.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Semua data runtime ada di folder `data/` dan tidak ikut ke git:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `data/media/users/<userId>/`: file video/audio milik tiap akun (folder induk bisa diubah lewat `MEDIA_DIR`). Setiap akun hanya bisa melihat, memutar, upload, dan live stream file di foldernya sendiri.
+- `data/mediaflow.db`: database SQLite, dibuat otomatis (bisa diubah lewat `DB_PATH`)
 
-## Learn More
+## Struktur
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+data/                (runtime, di-ignore) database + file media
+docs/                dokumen perencanaan
+src/
+  app/
+    (auth)/          route group, tidak memengaruhi URL
+      login/         /login
+      setup/         /setup: pembuatan admin pertama
+    (main)/          halaman yang butuh login
+      browse/        /browse: daftar folder dan file media
+      player/[fileId]/ /player/:id: pemutar video/audio + subtitle
+      stream/        /stream: kontrol live stream per akun
+      admin/users/   /admin/users: kelola user
+    api/
+      auth/          login, register, me, setup-status
+      admin/users/   CRUD user (khusus admin)
+      files/         daftar file, streaming, subtitle, upload chunk
+      folders/       daftar folder
+      resume/        simpan/ambil posisi terakhir menonton
+      stream/        start, stop, status live stream
+      thumbnail/     thumbnail video via ffmpeg
+  components/
+    auth/            LoginForm
+    media/           FileBrowser, UploadDialog
+    player/          VideoPlayer, SubtitleOverlay
+  lib/
+    auth.ts          hash password, JWT, cookie
+    db.ts            koneksi SQLite + query
+    ffmpeg.ts        lokasi binary ffmpeg
+    stream.ts        proses ffmpeg live stream + reconnect
+    media/
+      files.ts       scan folder media
+      subtitle.ts    parser srt/ass/vtt
+  types/
+```

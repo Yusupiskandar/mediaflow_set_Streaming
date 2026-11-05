@@ -1,26 +1,8 @@
 import { NextResponse } from 'next/server';
 import { spawn } from 'child_process';
-import fs from 'fs';
 import { getCurrentUser } from '@/lib/auth';
-import { findFileById, getMediaDir } from '@/lib/files';
-import path from 'path';
-
-function getFFmpegPath(): string {
-  const possiblePaths = [
-    path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
-    path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg'),
-  ];
-
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      return p;
-    }
-  }
-
-  return 'ffmpeg';
-}
-
-const FFMPEG_PATH = getFFmpegPath();
+import { findFileById, getAbsoluteFilePath } from '@/lib/media/files';
+import { FFMPEG_PATH } from '@/lib/ffmpeg';
 
 function generatePlaceholderSVG(text: string): Buffer {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120">
@@ -52,7 +34,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const file = findFileById(fileId);
+    const file = findFileById(user.userId, fileId);
 
     if (!file) {
       return NextResponse.json(
@@ -70,7 +52,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const videoPath = path.join(getMediaDir(), file.path);
+    const videoPath = getAbsoluteFilePath(user.userId, file);
 
     const thumbnailBuffer = await generateThumbnail(videoPath);
 

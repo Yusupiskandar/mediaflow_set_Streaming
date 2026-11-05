@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hashPassword } from '@/lib/auth';
 import { getAllUsers, createUser, getUserByUsername } from '@/lib/db';
+import { getAllLiveStreams } from '@/lib/stream';
 
 export async function GET() {
   try {
@@ -11,7 +12,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const users = getAllUsers();
+    const liveStreams = getAllLiveStreams();
+    const users = (getAllUsers() as { id: number; username: string; created_at: string }[]).map((user) => ({
+      ...user,
+      // null = sedang tidak live
+      live: liveStreams.get(user.id) ?? null,
+    }));
     return NextResponse.json({ users });
   } catch (error) {
     console.error('Fetch users error:', error);

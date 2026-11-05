@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { deleteUser } from '@/lib/db';
+import { deleteUser, getUserById } from '@/lib/db';
+import { stopStream } from '@/lib/stream';
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getCurrentUser();
-    
+
     // Hanya Admin (ID = 1) yang bisa mengakses
     if (!session || session.userId !== 1) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
@@ -22,6 +23,12 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Tidak dapat menghapus akun Admin utama' }, { status: 403 });
     }
 
+    if (!getUserById(targetUserId)) {
+      return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 });
+    }
+
+    // Hentikan live stream milik user ini (jika ada) sebelum akunnya dihapus.
+    stopStream(targetUserId);
     deleteUser(targetUserId);
 
     return NextResponse.json({ message: 'User berhasil dihapus' });
