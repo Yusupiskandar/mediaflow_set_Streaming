@@ -19,7 +19,7 @@ cp .env.example .env.local   # lalu isi JWT_SECRET
 npm run dev
 ```
 
-Buka http://localhost:3000. Saat pertama kali dijalankan, halaman `/setup` meminta pembuatan akun admin.
+Buka http://localhost:3003. Saat pertama kali dijalankan, halaman `/setup` meminta pembuatan akun admin.
 
 Semua data runtime ada di folder `data/` dan tidak ikut ke git:
 
