@@ -125,6 +125,9 @@ body {
 @utility btn-dark {
   @apply btn text-white bg-[#060b24] hover:bg-slate-800;
 }
+@utility btn-danger {
+  @apply btn text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-600/30;
+}
 @utility btn-live {
   @apply btn text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-600/30;
 }

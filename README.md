@@ -52,7 +52,7 @@ src/
       files/         daftar file, streaming, subtitle, upload chunk
       folders/       daftar folder
       resume/        simpan/ambil posisi terakhir menonton
-      stream/        start, stop, status live stream
+      stream/        start (sekarang/terjadwal), stop, status, schedule (batalkan jadwal)
       thumbnail/     thumbnail video via ffmpeg
   components/
     ui/              Logo, Icon, PageHeader (dipakai semua halaman)
@@ -65,8 +65,18 @@ src/
     db.ts            koneksi SQLite + query
     ffmpeg.ts        lokasi binary ffmpeg
     stream.ts        proses ffmpeg live stream + reconnect
+    schedule.ts      jadwal live otomatis (mulai/berhenti), dicek server tiap 5 detik
     media/
       files.ts       scan folder media
       subtitle.ts    parser srt/ass/vtt
   types/
+  instrumentation.ts menyalakan pengecek jadwal live saat server start
 ```
+
+## Jadwal live otomatis
+
+Di halaman Live Stream, bagian **Jadwal otomatis** (klik panah untuk membuka) berisi jam mulai dan jam berhenti. Keduanya opsional:
+
+- Mulai kosong: live dimulai saat tombol diklik. Berhenti kosong: live nonstop.
+- Jadwal disimpan di tabel `stream_schedules` dan dijalankan oleh server, jadi tetap berjalan walaupun browser ditutup. Stream key ikut disimpan karena server membutuhkannya saat jadwal tiba.
+- Jika server mati saat jam mulai, live tetap dimulai ketika server hidup lagi selama jam berhenti belum lewat. Jika sudah lewat, jadwal ditandai terlewat.

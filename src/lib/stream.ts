@@ -29,7 +29,7 @@ const globalForStream = globalThis as unknown as {
 };
 const activeStreams = (globalForStream.mediaflowStreams ??= new Map<number, StreamSession>());
 // Alasan live dihentikan oleh sistem/admin. Dikirim sekali ke pemilik akun lalu dihapus.
-type StopNotice = 'admin' | 'expired';
+type StopNotice = 'admin' | 'expired' | 'scheduled';
 const stopNotices = (globalForStream.mediaflowStopNotices ??= new Map<number, StopNotice>());
 
 const EXPIRY_CHECK_INTERVAL_MS = 15_000;
@@ -278,6 +278,10 @@ export function stopStream(userId: number, reason: StopReason = 'user'): { succe
   }
 }
 
+export function isStreaming(userId: number): boolean {
+  return activeStreams.has(userId);
+}
+
 function takeStopNotice(userId: number): StopNotice | null {
   const notice = stopNotices.get(userId) ?? null;
   stopNotices.delete(userId);
@@ -294,7 +298,7 @@ export function getStreamStatus(userId: number): {
     isReconnecting?: boolean;
     reconnectAttempts?: number;
   }>;
-  /** Diisi sekali setelah live dihentikan admin atau karena masa sewa habis. */
+  /** Diisi sekali setelah live dihentikan admin, masa sewa habis, atau jadwal berhenti tiba. */
   stopReason: StopNotice | null;
 } {
   const session = activeStreams.get(userId);

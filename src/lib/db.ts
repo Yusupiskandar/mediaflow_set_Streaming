@@ -47,6 +47,21 @@ function initializeDb(db: Database.Database) {
       status TEXT DEFAULT 'in_progress',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- Jadwal live otomatis, satu per akun (satu akun hanya bisa satu live).
+    -- start_at terisi = menunggu dimulai; start_at NULL + stop_at terisi = live berjalan, berhenti otomatis.
+    -- last_error terisi = jadwal gagal, disimpan agar pesannya bisa ditampilkan ke user.
+    CREATE TABLE IF NOT EXISTS stream_schedules (
+      user_id INTEGER PRIMARY KEY,
+      video_id TEXT NOT NULL,
+      stream_url TEXT NOT NULL,
+      stream_key TEXT NOT NULL,
+      start_at TEXT,
+      stop_at TEXT,
+      last_error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   migrateDb(db);
@@ -129,6 +144,7 @@ export function deleteUser(id: number) {
   // Database lama dibuat tanpa ON DELETE CASCADE, jadi data terkait dihapus manual.
   db.transaction(() => {
     db.prepare('DELETE FROM playback_progress WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM stream_schedules WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
   })();
 }
@@ -182,4 +198,56 @@ export function completeUpload(fileId: string) {
 export function getUploadSession(fileId: string) {
   const db = getDb();
   return db.prepare('SELECT * FROM upload_sessions WHERE file_id = ? AND status = ?').get(fileId, 'in_progress');
+}
+
+export interface StreamScheduleRecord {
+  user_id: number;
+  video_id: string;
+  stream_url: string;
+  /** Disimpan utuh karena server butuh stream key untuk memulai live saat jadwal tiba. */
+  stream_key: string;
+  start_at: string | null;
+  stop_at: string | null;
+  last_error: string | null;
+}
+
+export function getSchedule(userId: number): StreamScheduleRecord | undefined {
+  const db = getDb();
+  return db.prepare('SELECT * FROM stream_schedules WHERE user_id = ?').get(userId) as StreamScheduleRecord | undefined;
+}
+
+export function getAllSchedules(): StreamScheduleRecord[] {
+  const db = getDb();
+  return db.prepare('SELECT * FROM stream_schedules').all() as StreamScheduleRecord[];
+}
+
+/** Simpan jadwal baru, menggantikan jadwal lama milik akun yang sama. */
+export function saveSchedule(schedule: Omit<StreamScheduleRecord, 'last_error'>) {
+  const db = getDb();
+  db.prepare(
+    `INSERT OR REPLACE INTO stream_schedules (user_id, video_id, stream_url, stream_key, start_at, stop_at, last_error)
+     VALUES (?, ?, ?, ?, ?, ?, NULL)`
+  ).run(schedule.user_id, schedule.video_id, schedule.stream_url, schedule.stream_key, schedule.start_at, schedule.stop_at);
+}
+
+/** Live dari jadwal sudah dimulai: sisa jadwal tinggal berhenti otomatis. */
+export function markScheduleStarted(userId: number) {
+  const db = getDb();
+  db.prepare('UPDATE stream_schedules SET start_at = NULL WHERE user_id = ?').run(userId);
+}
+
+export function markScheduleFailed(userId: number, error: string) {
+  const db = getDb();
+  db.prepare('UPDATE stream_schedules SET start_at = NULL, stop_at = NULL, last_error = ? WHERE user_id = ?').run(error, userId);
+}
+
+export function deleteSchedule(userId: number) {
+  const db = getDb();
+  db.prepare('DELETE FROM stream_schedules WHERE user_id = ?').run(userId);
+}
+
+/** Hapus posisi terakhir menonton untuk satu file (dipakai saat file dihapus). */
+export function deleteResumePosition(userId: number, fileId: string) {
+  const db = getDb();
+  db.prepare('DELETE FROM playback_progress WHERE user_id = ? AND file_id = ?').run(userId, fileId);
 }

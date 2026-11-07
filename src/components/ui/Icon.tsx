@@ -15,6 +15,7 @@ export const ICONS = {
   plus: 'M12 5v14M5 12h14',
   clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
   key: 'M15 7a4 4 0 1 1-3.87 5H9l-2 2-2-2 2-2h4.13A4 4 0 0 1 15 7z',
+  trash: 'M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6m6 5v6m4-6v6',
 } as const;
 
 export default function Icon({ d, className = 'w-5 h-5' }: { d: string; className?: string }) {

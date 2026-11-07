@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Icon, { ICONS } from '@/components/ui/Icon';
 import FileBrowser from '@/components/media/FileBrowser';
 import UploadDialog from '@/components/media/UploadDialog';
+import DeleteMediaDialog from '@/components/media/DeleteMediaDialog';
 import type { MediaFile, FolderItem } from '@/types';
 
 type DirectoryData =
@@ -40,6 +41,8 @@ export default function BrowsePage() {
   const [currentDir, setCurrentDir] = useState('');
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MediaFile | null>(null);
+  const [notice, setNotice] = useState('');
 
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -107,6 +110,13 @@ export default function BrowsePage() {
         }
       />
 
+      {notice && (
+        <div className="alert-success mb-6 flex items-start justify-between gap-3">
+          <span>{notice}</span>
+          <button onClick={() => setNotice('')} className="shrink-0 font-semibold hover:underline">Tutup</button>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div className="flex flex-wrap items-center gap-2 mb-8">
         {currentDir && (
@@ -145,6 +155,23 @@ export default function BrowsePage() {
           onFileClick={handleFileClick}
           onFolderClick={handleFolderClick}
           onUploadClick={() => setShowUpload(true)}
+          onDeleteClick={(file) => {
+            setNotice('');
+            setDeleteTarget(file);
+          }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteMediaDialog
+          key={deleteTarget.id}
+          file={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={(message) => {
+            setDeleteTarget(null);
+            setNotice(message);
+            setReloadKey((key) => key + 1);
+          }}
         />
       )}
 

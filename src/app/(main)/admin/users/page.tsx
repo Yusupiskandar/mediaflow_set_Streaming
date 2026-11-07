@@ -23,6 +23,8 @@ interface User {
   expires_at: string | null;
   isExpired: boolean;
   live: LiveInfo | null;
+  /** Jadwal live otomatis: kapan mulai dan/atau berhenti. */
+  schedule: { startAt: string | null; stopAt: string | null } | null;
 }
 
 const REFRESH_INTERVAL_MS = 5000;
@@ -108,10 +110,23 @@ function platformName(host: string): string {
   return host;
 }
 
-function LiveStatus({ live, now }: { live: LiveInfo | null; now: number }) {
+function LiveStatus({ live, schedule, now }: { live: LiveInfo | null; schedule: User['schedule']; now: number }) {
   if (!live) {
+    if (schedule?.startAt) {
+      return (
+        <div className="space-y-1">
+          <span className="badge bg-blue-50 text-blue-700">Terjadwal</span>
+          <p className="text-xs text-slate-400">Mulai {formatDateTime(schedule.startAt)}</p>
+          {schedule.stopAt && <p className="text-xs text-slate-400">Berhenti {formatDateTime(schedule.stopAt)}</p>}
+        </div>
+      );
+    }
     return <span className="badge bg-slate-100 text-slate-500">Offline</span>;
   }
+
+  const autoStop = schedule?.stopAt ? (
+    <p className="text-xs text-slate-400">Berhenti otomatis {formatDateTime(schedule.stopAt)}</p>
+  ) : null;
 
   const duration = formatDuration((now - new Date(live.startedAt).getTime()) / 1000);
 
@@ -137,6 +152,7 @@ function LiveStatus({ live, now }: { live: LiveInfo | null; now: number }) {
       <p className="text-xs text-slate-400">
         ke {platformName(live.destination)} · key {live.streamKey}
       </p>
+      {autoStop}
     </div>
   );
 }
@@ -607,7 +623,7 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4"><SubscriptionStatus user={user} now={now} /></td>
-                  <td className="px-6 py-4"><LiveStatus live={user.live} now={now} /></td>
+                  <td className="px-6 py-4"><LiveStatus live={user.live} schedule={user.schedule} now={now} /></td>
                   <td className="px-6 py-4 text-slate-400 text-sm whitespace-nowrap">{parseSqliteDate(user.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">

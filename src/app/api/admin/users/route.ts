@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hashPassword } from '@/lib/auth';
-import { getAllUsers, createUser, getUserByUsername } from '@/lib/db';
+import { getAllUsers, createUser, getUserByUsername, getAllSchedules } from '@/lib/db';
 import { getAllLiveStreams } from '@/lib/stream';
 import { isAccountExpired, parseExpiryInput } from '@/lib/subscription';
 
@@ -14,11 +14,17 @@ export async function GET() {
     }
 
     const liveStreams = getAllLiveStreams();
+    const schedules = new Map(getAllSchedules().map((s) => [s.user_id, s]));
     const users = getAllUsers().map((user) => ({
       ...user,
       isExpired: isAccountExpired(user),
       // null = sedang tidak live
       live: liveStreams.get(user.id) ?? null,
+      // Jadwal tanpa stream key: kapan mulai/berhenti otomatis.
+      schedule: (() => {
+        const s = schedules.get(user.id);
+        return s && !s.last_error ? { startAt: s.start_at, stopAt: s.stop_at } : null;
+      })(),
     }));
     return NextResponse.json({ users });
   } catch (error) {

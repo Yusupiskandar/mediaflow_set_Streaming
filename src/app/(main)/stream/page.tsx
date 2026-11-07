@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { MediaFile } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
 import PasswordInput from '@/components/ui/PasswordInput';
+import Icon, { ICONS } from '@/components/ui/Icon';
 
 interface StreamStatus {
   isStreaming: boolean;
@@ -16,7 +17,39 @@ interface StreamStatus {
     isReconnecting?: boolean;
     reconnectAttempts?: number;
   }>;
-  stopReason?: 'admin' | 'expired' | null;
+  stopReason?: 'admin' | 'expired' | 'scheduled' | null;
+  /** Jadwal live otomatis milik akun ini (null = tidak ada). */
+  schedule?: ScheduleInfo | null;
+}
+
+interface ScheduleInfo {
+  videoId: string;
+  videoName: string;
+  startAt: string | null;
+  stopAt: string | null;
+  /** Terisi jika jadwal gagal dijalankan. */
+  error: string | null;
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+/** Nilai untuk <input type="datetime-local"> dalam zona waktu lokal browser. */
+function toLocalInputValue(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** "02:13:45" atau "3 hari 04:10:00" untuk hitung mundur. */
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  const clock = [h, m, sec].map((n) => n.toString().padStart(2, '0')).join(':');
+  return days > 0 ? `${days} hari ${clock}` : clock;
 }
 
 async function loadStreamStatus(): Promise<StreamStatus | 'unauthorized' | null> {
@@ -38,6 +71,12 @@ export default function StreamPage() {
   const [success, setSuccess] = useState('');
   const [fetchingFiles, setFetchingFiles] = useState(true);
   const [streamDuration, setStreamDuration] = useState(0);
+
+  // Jadwal otomatis (disembunyikan default). Nilai = datetime-local, kosong = tidak dipakai.
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [startAt, setStartAt] = useState('');
+  const [stopAt, setStopAt] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
@@ -88,6 +127,9 @@ export default function StreamPage() {
     } else if (data.stopReason === 'expired') {
       setSuccess('');
       setError('Live Anda dihentikan karena masa sewa akun sudah habis.');
+    } else if (data.stopReason === 'scheduled') {
+      setError('');
+      setSuccess('Live dihentikan otomatis sesuai jadwal.');
     }
 
     // Start timer jika streaming baru dimulai
@@ -157,6 +199,13 @@ export default function StreamPage() {
     };
   }, [router, applyStatus, fetchStatus]);
 
+  const hasCountdown = Boolean(status.schedule && !status.schedule.error && (status.schedule.startAt || status.schedule.stopAt));
+  useEffect(() => {
+    if (!hasCountdown && !showSchedule) return;
+    const clock = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(clock);
+  }, [hasCountdown, showSchedule]);
+
   const handleStartStream = async () => {
     if (!selectedVideo) {
       setError('Pilih video terlebih dahulu');
@@ -173,6 +222,17 @@ export default function StreamPage() {
       return;
     }
 
+    const startTime = startAt ? new Date(startAt).getTime() : null;
+    const stopTime = stopAt ? new Date(stopAt).getTime() : null;
+    if (startTime !== null && startTime <= Date.now()) {
+      setError('Waktu mulai otomatis sudah lewat. Pilih waktu di masa depan.');
+      return;
+    }
+    if (stopTime !== null && stopTime <= (startTime ?? Date.now())) {
+      setError(startTime !== null ? 'Waktu berhenti harus setelah waktu mulai.' : 'Waktu berhenti harus di masa depan.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess('');
@@ -185,6 +245,9 @@ export default function StreamPage() {
           videoId: selectedVideo,
           streamUrl: streamUrl.trim(),
           streamKey: streamKey.trim(),
+          // Dikirim sebagai ISO supaya zona waktu browser ikut terhitung.
+          startAt: startTime !== null ? new Date(startTime).toISOString() : undefined,
+          stopAt: stopTime !== null ? new Date(stopTime).toISOString() : undefined,
         }),
       });
 
@@ -195,6 +258,10 @@ export default function StreamPage() {
       }
 
       setSuccess(data.message);
+      // Jadwal sudah tersimpan di server, kosongkan form jadwal.
+      setStartAt('');
+      setStopAt('');
+      setShowSchedule(false);
       // Langsung check status setelah stream dimulai
       await fetchStatus();
       // Check lagi setelah 1 detik untuk memastikan
@@ -234,8 +301,35 @@ export default function StreamPage() {
     }
   };
 
+  const handleCancelSchedule = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await fetch('/api/stream/schedule', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok && res.status !== 404) throw new Error(data.error || 'Gagal membatalkan jadwal');
+      if (status.schedule && !status.schedule.error) setSuccess('Jadwal live dibatalkan.');
+      await fetchStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal membatalkan jadwal');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isAnyReconnecting = status.streams.some(s => s.isReconnecting);
   const canStart = Boolean(selectedVideo && streamUrl.trim() && streamKey.trim());
+  const schedule = status.schedule ?? null;
+  // Jadwal menunggu dimulai: form dikunci sampai jadwal jalan atau dibatalkan.
+  const pendingSchedule = schedule && !schedule.error && schedule.startAt && !status.isStreaming ? schedule : null;
+  const autoStopAt = status.isStreaming && schedule && !schedule.error ? schedule.stopAt : null;
+  const formLocked = status.isStreaming || loading || Boolean(pendingSchedule);
+  const minDateTime = toLocalInputValue(new Date(now));
+  const scheduleSummary = [
+    startAt && `Mulai ${formatDateTime(new Date(startAt).toISOString())}`,
+    stopAt && `Berhenti ${formatDateTime(new Date(stopAt).toISOString())}`,
+  ].filter(Boolean).join(' · ');
 
   return (
     <>
@@ -260,7 +354,7 @@ export default function StreamPage() {
                 <select
                   value={selectedVideo}
                   onChange={(e) => setSelectedVideo(e.target.value)}
-                  disabled={status.isStreaming || loading}
+                  disabled={formLocked}
                   className="input"
                 >
                   <option value="">-- Pilih Video --</option>
@@ -298,7 +392,7 @@ export default function StreamPage() {
                 type="text"
                 value={streamUrl}
                 onChange={(e) => setStreamUrl(e.target.value)}
-                disabled={status.isStreaming || loading}
+                disabled={formLocked}
                 placeholder="rtmp://a.rtmp.youtube.com/live2"
                 className="input font-mono text-sm"
               />
@@ -311,19 +405,106 @@ export default function StreamPage() {
               <PasswordInput
                 value={streamKey}
                 onChange={(e) => setStreamKey(e.target.value)}
-                disabled={status.isStreaming || loading}
+                disabled={formLocked}
                 placeholder="Masukkan stream key"
                 className="font-mono text-sm"
               />
               <p className="hint">Dapatkan dari dashboard streaming platform.</p>
             </div>
 
+            {/* Jadwal otomatis: disembunyikan default, dibuka lewat tombol panah */}
+            {!status.isStreaming && !pendingSchedule && (
+              <div className="rounded-2xl bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => setShowSchedule((v) => !v)}
+                  aria-expanded={showSchedule}
+                  aria-controls="jadwal-otomatis"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <span className="w-9 h-9 shrink-0 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <Icon d={ICONS.clock} className="w-5 h-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-slate-800">
+                        Jadwal otomatis <span className="font-normal text-slate-400">(opsional)</span>
+                      </span>
+                      <span className="block text-xs text-slate-400 truncate">
+                        {scheduleSummary || 'Atur jam mulai dan berhenti otomatis'}
+                      </span>
+                    </span>
+                  </span>
+                  <Icon
+                    d={ICONS.chevron}
+                    className={`w-5 h-5 shrink-0 text-slate-500 transition-transform duration-300 ${showSchedule ? 'rotate-90' : ''}`}
+                  />
+                </button>
+
+                {showSchedule && (
+                  <div id="jadwal-otomatis" className="px-4 pb-4 space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label htmlFor="start-at" className="text-sm font-medium text-slate-700">Mulai otomatis</label>
+                          {startAt && (
+                            <button type="button" onClick={() => setStartAt('')} className="text-xs text-slate-400 hover:text-red-600">Hapus</button>
+                          )}
+                        </div>
+                        <input
+                          id="start-at"
+                          type="datetime-local"
+                          value={startAt}
+                          min={minDateTime}
+                          onChange={(e) => setStartAt(e.target.value)}
+                          disabled={formLocked}
+                          className="input bg-white"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label htmlFor="stop-at" className="text-sm font-medium text-slate-700">Berhenti otomatis</label>
+                          {stopAt && (
+                            <button type="button" onClick={() => setStopAt('')} className="text-xs text-slate-400 hover:text-red-600">Hapus</button>
+                          )}
+                        </div>
+                        <input
+                          id="stop-at"
+                          type="datetime-local"
+                          value={stopAt}
+                          min={startAt || minDateTime}
+                          onChange={(e) => setStopAt(e.target.value)}
+                          disabled={formLocked}
+                          className="input bg-white"
+                        />
+                      </div>
+                    </div>
+                    <ul className="text-xs text-slate-500 space-y-1">
+                      <li>• <strong>Mulai</strong> kosong: live dimulai saat tombol diklik.</li>
+                      <li>• <strong>Berhenti</strong> kosong: live berjalan nonstop sampai dihentikan.</li>
+                      <li>• Live terjadwal tetap berjalan walaupun halaman ini ditutup.</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Jadwal gagal dijalankan */}
+            {schedule?.error && (
+              <div className="alert-error flex items-start justify-between gap-3">
+                <span>{schedule.error}</span>
+                <button onClick={handleCancelSchedule} disabled={loading} className="shrink-0 font-semibold hover:underline">
+                  Tutup
+                </button>
+              </div>
+            )}
+
             {/* Error/Success Messages */}
             {error && <div className="alert-error">{error}</div>}
             {success && <div className="alert-success">{success}</div>}
 
             {/* Validation Hints */}
-            {!status.isStreaming && !canStart && (
+            {!status.isStreaming && !pendingSchedule && !canStart && (
               <div className="alert-warning">
                 <p className="font-semibold mb-1">Yang perlu dilengkapi:</p>
                 <ul className="list-disc list-inside space-y-0.5">
@@ -335,15 +516,25 @@ export default function StreamPage() {
             )}
 
             {/* Buttons */}
-            {!status.isStreaming ? (
+            {pendingSchedule ? (
+              <button
+                onClick={handleCancelSchedule}
+                disabled={loading}
+                className="btn-secondary w-full py-3.5 text-base"
+              >
+                {loading ? <><span className="spinner" /> Membatalkan...</> : 'Batalkan Jadwal'}
+              </button>
+            ) : !status.isStreaming ? (
               <button
                 onClick={handleStartStream}
                 disabled={loading || !canStart}
                 title={!selectedVideo ? 'Pilih video terlebih dahulu' : !streamUrl.trim() ? 'Masukkan Stream URL' : !streamKey.trim() ? 'Masukkan Stream Key' : ''}
-                className="btn-live w-full py-3.5 text-base"
+                className={`${startAt ? 'btn-primary' : 'btn-live'} w-full py-3.5 text-base`}
               >
                 {loading ? (
-                  <><span className="spinner" /> Memulai...</>
+                  <><span className="spinner" /> {startAt ? 'Menyimpan...' : 'Memulai...'}</>
+                ) : startAt ? (
+                  <><Icon d={ICONS.clock} className="w-5 h-5" /> Jadwalkan Live</>
                 ) : (
                   <><span className="w-2.5 h-2.5 bg-white rounded-full" /> Mulai Live Stream</>
                 )}
@@ -371,7 +562,11 @@ export default function StreamPage() {
             <div className="relative">
               <div className="flex items-center justify-between mb-6">
                 <span className="text-sm font-bold text-amber-50">Status Siaran</span>
-                {!status.isStreaming ? (
+                {pendingSchedule ? (
+                  <span className="badge bg-blue-500 text-white">
+                    <Icon d={ICONS.clock} className="w-3.5 h-3.5" /> Terjadwal
+                  </span>
+                ) : !status.isStreaming ? (
                   <span className="badge bg-white/10 text-slate-300">Offline</span>
                 ) : isAnyReconnecting ? (
                   <span className="badge bg-amber-400 text-amber-950">
@@ -384,17 +579,46 @@ export default function StreamPage() {
                 )}
               </div>
 
-              <p className="text-xs text-slate-400 mb-1">Durasi live</p>
-              <p className={`font-mono text-4xl font-bold mb-6 ${status.isStreaming ? 'text-amber-50' : 'text-slate-600'}`}>
-                {formatDuration(streamDuration)}
-              </p>
+              {pendingSchedule?.startAt ? (
+                <>
+                  <p className="text-xs text-slate-400 mb-1">Mulai dalam</p>
+                  <p className="font-mono text-4xl font-bold mb-6 text-amber-50">
+                    {formatCountdown(Date.parse(pendingSchedule.startAt) - now)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-400 mb-1">Durasi live</p>
+                  <p className={`font-mono text-4xl font-bold mb-6 ${status.isStreaming ? 'text-amber-50' : 'text-slate-600'}`}>
+                    {formatDuration(streamDuration)}
+                  </p>
+                </>
+              )}
 
-              {status.isStreaming ? (
+              {pendingSchedule?.startAt ? (
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4"><dt className="text-slate-400">Video</dt><dd className="text-white font-medium truncate" title={pendingSchedule.videoName}>{pendingSchedule.videoName}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="text-slate-400">Mulai</dt><dd className="text-white">{formatDateTime(pendingSchedule.startAt)}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="text-slate-400">Berhenti</dt><dd className="text-white">{pendingSchedule.stopAt ? formatDateTime(pendingSchedule.stopAt) : 'Nonstop'}</dd></div>
+                  <p className="pt-2 text-slate-400">Live dimulai otomatis oleh server, halaman ini boleh ditutup.</p>
+                </dl>
+              ) : status.isStreaming ? (
                 status.streams.map((stream, idx) => (
                   <dl key={idx} className="space-y-2 text-sm">
                     <div className="flex justify-between gap-4"><dt className="text-slate-400">Video</dt><dd className="text-white font-medium truncate" title={stream.videoName}>{stream.videoName}</dd></div>
                     <div className="flex justify-between gap-4"><dt className="text-slate-400">Mulai</dt><dd className="text-white">{new Date(stream.startedAt).toLocaleString('id-ID')}</dd></div>
                     <div className="flex justify-between gap-4"><dt className="text-slate-400">Stream key</dt><dd className="text-white font-mono">{stream.streamKey}</dd></div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-slate-400">Berhenti</dt>
+                      <dd className="text-white text-right">
+                        {autoStopAt ? (
+                          <>
+                            {formatDateTime(autoStopAt)}
+                            <span className="block font-mono text-xs text-amber-200">dalam {formatCountdown(Date.parse(autoStopAt) - now)}</span>
+                          </>
+                        ) : 'Nonstop'}
+                      </dd>
+                    </div>
                     {stream.isReconnecting && (
                       <p className="pt-2 text-amber-300 font-semibold">
                         Koneksi terputus, mencoba menyambung ulang ({stream.reconnectAttempts || 1}/10)

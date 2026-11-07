@@ -10,6 +10,7 @@ interface FileBrowserProps {
   onFileClick: (file: MediaFile) => void;
   onFolderClick: (folder: FolderItem) => void;
   onUploadClick?: () => void;
+  onDeleteClick?: (file: MediaFile) => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -45,7 +46,7 @@ function VideoThumbnail({ fileId, fileName }: { fileId: string; fileName: string
   );
 }
 
-export default function FileBrowser({ files, folders, onFileClick, onFolderClick, onUploadClick }: FileBrowserProps) {
+export default function FileBrowser({ files, folders, onFileClick, onFolderClick, onUploadClick, onDeleteClick }: FileBrowserProps) {
   if (files.length === 0 && folders.length === 0) {
     return (
       <div className="card p-12 text-center">
@@ -92,10 +93,10 @@ export default function FileBrowser({ files, folders, onFileClick, onFolderClick
           <h2 className="text-lg font-bold text-slate-800 mb-4">File Media</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {files.map((file) => (
+              <div key={file.id} className="group relative card card-hover overflow-hidden">
               <button
-                key={file.id}
                 onClick={() => onFileClick(file)}
-                className="group card card-hover overflow-hidden text-left flex flex-col"
+                className="w-full text-left flex flex-col"
               >
                 <div className="relative aspect-video overflow-hidden bg-slate-100">
                   {file.type === 'video' ? (
@@ -119,6 +120,18 @@ export default function FileBrowser({ files, folders, onFileClick, onFolderClick
                   <p className="text-sm text-slate-400">{formatFileSize(file.size)}</p>
                 </div>
               </button>
+              {onDeleteClick && (
+                // Selalu terlihat di layar sentuh, muncul saat hover/fokus di desktop.
+                <button
+                  onClick={() => onDeleteClick(file)}
+                  title="Hapus media"
+                  aria-label={`Hapus ${file.name}`}
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 text-slate-500 shadow-sm flex items-center justify-center hover:bg-red-600 hover:text-white focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
+                >
+                  <Icon d={ICONS.trash} className="w-4 h-4" />
+                </button>
+              )}
+              </div>
             ))}
           </div>
         </section>

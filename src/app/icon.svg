@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Sama dengan logo di header (components/ui/Logo.tsx): kotak blue-600 rounded-lg + tombol play putih -->
+  <rect width="32" height="32" rx="8" fill="#155dfc"/>
+  <path d="M7 4l13 8-13 8V4z" fill="#ffffff" transform="translate(8 8) scale(0.6667)"/>
+</svg>

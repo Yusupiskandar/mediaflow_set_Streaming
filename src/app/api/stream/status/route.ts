@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getStreamStatus } from '@/lib/stream';
+import { ensureScheduler, getScheduleInfo } from '@/lib/schedule';
 
 export async function GET() {
   try {
@@ -13,9 +14,11 @@ export async function GET() {
       );
     }
 
+    // Jaga-jaga jika instrumentation belum menjalankan pengecek jadwal.
+    ensureScheduler();
     const status = getStreamStatus(user.userId);
 
-    return NextResponse.json(status);
+    return NextResponse.json({ ...status, schedule: getScheduleInfo(user.userId) });
   } catch (error) {
     console.error('Stream status error:', error);
     return NextResponse.json(

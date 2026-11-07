@@ -232,3 +232,35 @@ export function getAbsoluteFilePath(userId: number, file: MediaFile): string {
 export function ensureUserMediaDir(userId: number) {
   fs.mkdirSync(getUserMediaRoot(userId), { recursive: true });
 }
+
+/**
+ * Hapus file media beserta subtitle-nya (file .srt/.ass/.vtt dengan nama dasar sama).
+ * Subtitle tidak dihapus jika masih ada media lain bernama dasar sama di folder itu
+ * (misalnya `film.mp4` dan `film.mkv` berbagi `film.srt`).
+ * Error dari disk (mis. EBUSY karena file sedang dibuka) dilempar ke pemanggil.
+ */
+export function deleteMediaFile(userId: number, file: MediaFile): { deletedSubtitles: string[] } {
+  const fullPath = getAbsoluteFilePath(userId, file);
+  const dir = path.dirname(fullPath);
+  const basename = path.basename(file.name, path.extname(file.name));
+
+  fs.unlinkSync(fullPath);
+
+  const siblingShareName = fs
+    .readdirSync(dir)
+    .some((item) => isMediaFile(item) && path.basename(item, path.extname(item)) === basename);
+
+  const deletedSubtitles: string[] = [];
+  if (!siblingShareName) {
+    for (const subtitle of getSubtitlesForFile(userId, file.path)) {
+      try {
+        fs.unlinkSync(resolveMediaPath(userId, subtitle.path));
+        deletedSubtitles.push(subtitle.name);
+      } catch (error) {
+        console.error(`[Media] Gagal menghapus subtitle ${subtitle.name}:`, error);
+      }
+    }
+  }
+
+  return { deletedSubtitles };
+}
