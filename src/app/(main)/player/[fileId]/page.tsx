@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import VideoPlayer from '@/components/player/VideoPlayer';
+import PageHeader from '@/components/ui/PageHeader';
+import Icon, { ICONS } from '@/components/ui/Icon';
 import type { MediaFile, SubtitleFile } from '@/types';
 
 type PlayerData =
@@ -89,55 +91,44 @@ export default function PlayerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="py-24 flex justify-center text-blue-600">
+        <span className="spinner w-10 h-10" />
       </div>
     );
   }
 
   if (error || !file) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 text-xl mb-4">{error || 'File tidak ditemukan'}</p>
-          <button
-            onClick={handleBack}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-          >
-            Kembali
-          </button>
-        </div>
+      <div className="card p-12 text-center max-w-lg mx-auto">
+        <p className="eyebrow mb-2">Pemutar</p>
+        <h1 className="text-2xl font-bold text-slate-800 mb-6">{error || 'File tidak ditemukan'}</h1>
+        <button onClick={handleBack} className="btn-primary">
+          <Icon d={ICONS.back} className="w-4 h-4" />
+          Kembali ke Media
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBack}
-                className="text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                ← Kembali
-              </button>
-              <h1 className="text-gray-900 font-medium truncate max-w-md">{file.name}</h1>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <VideoPlayer
-          fileId={fileId}
-          fileName={file.name}
-          fileType={file.type}
-          initialPosition={resumePosition}
-          subtitles={subtitles}
-        />
-      </main>
-    </div>
+    <>
+      <PageHeader
+        eyebrow={file.type === 'video' ? 'Pemutar Video' : 'Pemutar Audio'}
+        title={<span title={file.name}>{file.name}</span>}
+        actions={
+          <button onClick={handleBack} className="btn-secondary">
+            <Icon d={ICONS.back} className="w-4 h-4" />
+            Kembali
+          </button>
+        }
+      />
+      <VideoPlayer
+        fileId={fileId}
+        fileName={file.name}
+        fileType={file.type}
+        initialPosition={resumePosition}
+        subtitles={subtitles}
+      />
+    </>
   );
 }

@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MediaFile } from '@/types';
+import PageHeader from '@/components/ui/PageHeader';
+import PasswordInput from '@/components/ui/PasswordInput';
 
 interface StreamStatus {
   isStreaming: boolean;
@@ -233,243 +235,202 @@ export default function StreamPage() {
   };
 
   const isAnyReconnecting = status.streams.some(s => s.isReconnecting);
+  const canStart = Boolean(selectedVideo && streamUrl.trim() && streamKey.trim());
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/browse')}
-                className="text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                ← Kembali
-              </button>
-              <h1 className="text-xl font-bold text-gray-900">Live Streaming ke YouTube</h1>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <>
+      <PageHeader
+        eyebrow="Live Stream"
+        title="Siaran 24 Jam"
+        description="Pilih video, masukkan stream key, dan video diputar ulang terus-menerus."
+      />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Status Stream */}
-        {status.isStreaming && (
-          <div className={`mb-6 p-4 rounded-lg border transition-colors ${
-            isAnyReconnecting 
-              ? 'bg-yellow-50 border-yellow-300' 
-              : 'bg-green-50 border-green-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              {isAnyReconnecting ? (
-                <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
-                  <span className="text-yellow-800 font-medium">Koneksi Terputus - Sedang Menyambung Ulang ke YouTube...</span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-green-700 font-medium">LIVE - Sedang Streaming</span>
-                </div>
-              )}
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded ${
-                isAnyReconnecting ? 'bg-yellow-100' : 'bg-green-100'
-              }`}>
-                <span className={`${isAnyReconnecting ? 'text-yellow-800' : 'text-green-700'} text-sm`}>Durasi:</span>
-                <span className="text-gray-900 font-mono font-bold text-lg">{formatDuration(streamDuration)}</span>
-              </div>
-            </div>
-            {status.streams.map((stream, idx) => (
-              <div key={idx} className={`mt-3 text-sm ${isAnyReconnecting ? 'text-yellow-800' : 'text-green-700'}`}>
-                <p>Video: {stream.videoName}</p>
-                <p>Mulai: {new Date(stream.startedAt).toLocaleString('id-ID')}</p>
-                <p>Stream Key: {stream.streamKey}</p>
-                {stream.isReconnecting && (
-                  <p className="mt-1 font-semibold text-yellow-800">
-                    Percobaan Sambung Ulang: {stream.reconnectAttempts || 1} / 10
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
+      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 items-start">
         {/* Form Stream */}
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Mulai Live Streaming</h2>
+        <div className="card p-6 sm:p-8">
+          <h2 className="text-xl font-bold text-slate-800 mb-6">Pengaturan Live</h2>
 
-          {/* Pilih Video */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Pilih Video
-            </label>
-            {fetchingFiles ? (
-              <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-500">
-                Memuat daftar video...
-              </div>
-            ) : (
-              <select
-                value={selectedVideo}
-                onChange={(e) => setSelectedVideo(e.target.value)}
-                disabled={status.isStreaming || loading}
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                <option value="">-- Pilih Video --</option>
-                {files.map((file) => (
-                  <option key={file.id} value={file.id}>
-                    {file.name} ({file.type === 'video' ? 'Video' : 'Audio'})
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {/* Video Preview */}
-          {selectedVideo && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Preview Video
-              </label>
-              <div className="bg-black rounded-lg overflow-hidden">
-                <video
-                  key={selectedVideo}
-                  src={`/api/files/${selectedVideo}/stream`}
-                  controls
-                  className="w-full aspect-video"
+          <div className="space-y-5">
+            {/* Pilih Video */}
+            <div>
+              <label className="label">Pilih video</label>
+              {fetchingFiles ? (
+                <div className="input text-slate-400">Memuat daftar video...</div>
+              ) : (
+                <select
+                  value={selectedVideo}
+                  onChange={(e) => setSelectedVideo(e.target.value)}
+                  disabled={status.isStreaming || loading}
+                  className="input"
                 >
-                  Browser Anda tidak mendukung video playback.
-                </video>
+                  <option value="">-- Pilih Video --</option>
+                  {files.map((file) => (
+                    <option key={file.id} value={file.id}>
+                      {file.name} ({file.type === 'video' ? 'Video' : 'Audio'})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Video Preview */}
+            {selectedVideo && (
+              <div>
+                <label className="label">Preview</label>
+                <div className="bg-black rounded-2xl overflow-hidden">
+                  <video
+                    key={selectedVideo}
+                    src={`/api/files/${selectedVideo}/stream`}
+                    controls
+                    className="w-full aspect-video"
+                  >
+                    Browser Anda tidak mendukung video playback.
+                  </video>
+                </div>
+                <p className="hint">Preview sebelum live stream dimulai</p>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Preview sebelum live stream dimulai
-              </p>
+            )}
+
+            {/* Stream URL */}
+            <div>
+              <label className="label">Stream URL</label>
+              <input
+                type="text"
+                value={streamUrl}
+                onChange={(e) => setStreamUrl(e.target.value)}
+                disabled={status.isStreaming || loading}
+                placeholder="rtmp://a.rtmp.youtube.com/live2"
+                className="input font-mono text-sm"
+              />
+              <p className="hint">Default: YouTube. Ubah untuk platform lain (Twitch, Facebook, dll).</p>
             </div>
-          )}
 
-          {/* Stream URL */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Stream URL
-            </label>
-            <input
-              type="text"
-              value={streamUrl}
-              onChange={(e) => setStreamUrl(e.target.value)}
-              disabled={status.isStreaming || loading}
-              placeholder="rtmp://a.rtmp.youtube.com/live2"
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Default: YouTube. Ubah untuk platform lain (Twitch, Facebook, dll)
-            </p>
-          </div>
-
-          {/* Stream Key */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Stream Key
-            </label>
-            <input
-              type="password"
-              value={streamKey}
-              onChange={(e) => setStreamKey(e.target.value)}
-              disabled={status.isStreaming || loading}
-              placeholder="Masukkan stream key"
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Dapatkan dari dashboard streaming platform
-            </p>
-          </div>
-
-          {/* Error/Success Messages */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-              {error}
+            {/* Stream Key */}
+            <div>
+              <label className="label">Stream key</label>
+              <PasswordInput
+                value={streamKey}
+                onChange={(e) => setStreamKey(e.target.value)}
+                disabled={status.isStreaming || loading}
+                placeholder="Masukkan stream key"
+                className="font-mono text-sm"
+              />
+              <p className="hint">Dapatkan dari dashboard streaming platform.</p>
             </div>
-          )}
-          {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
-              {success}
-            </div>
-          )}
 
-          {/* Validation Hints */}
-          {!status.isStreaming && (!selectedVideo || !streamUrl.trim() || !streamKey.trim()) && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded-md text-yellow-800 text-sm">
-              <p className="font-medium mb-1">Yang perlu dilengkapi:</p>
-              <ul className="list-disc list-inside space-y-1">
-                {!selectedVideo && <li>Pilih video dari dropdown</li>}
-                {!streamUrl.trim() && <li>Masukkan Stream URL</li>}
-                {!streamKey.trim() && <li>Masukkan Stream Key</li>}
-              </ul>
-            </div>
-          )}
+            {/* Error/Success Messages */}
+            {error && <div className="alert-error">{error}</div>}
+            {success && <div className="alert-success">{success}</div>}
 
-          {/* Buttons */}
-          <div className="flex space-x-4">
+            {/* Validation Hints */}
+            {!status.isStreaming && !canStart && (
+              <div className="alert-warning">
+                <p className="font-semibold mb-1">Yang perlu dilengkapi:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  {!selectedVideo && <li>Pilih video dari daftar</li>}
+                  {!streamUrl.trim() && <li>Masukkan Stream URL</li>}
+                  {!streamKey.trim() && <li>Masukkan Stream Key</li>}
+                </ul>
+              </div>
+            )}
+
+            {/* Buttons */}
             {!status.isStreaming ? (
               <button
                 onClick={handleStartStream}
-                disabled={loading || !selectedVideo || !streamUrl.trim() || !streamKey.trim()}
+                disabled={loading || !canStart}
                 title={!selectedVideo ? 'Pilih video terlebih dahulu' : !streamUrl.trim() ? 'Masukkan Stream URL' : !streamKey.trim() ? 'Masukkan Stream Key' : ''}
-                className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-bold rounded-md transition-colors flex items-center justify-center space-x-2"
+                className="btn-live w-full py-3.5 text-base"
               >
                 {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Memulai...</span>
-                  </>
+                  <><span className="spinner" /> Memulai...</>
                 ) : (
-                  <>
-                    <span className="w-3 h-3 bg-white rounded-full"></span>
-                    <span>MULAI LIVE STREAM</span>
-                  </>
+                  <><span className="w-2.5 h-2.5 bg-white rounded-full" /> Mulai Live Stream</>
                 )}
               </button>
             ) : (
               <button
                 onClick={handleStopStream}
                 disabled={loading}
-                className="flex-1 py-3 px-4 bg-gray-900 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-md transition-colors flex items-center justify-center space-x-2"
+                className="btn-dark w-full py-3.5 text-base"
               >
                 {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Menghentikan...</span>
-                  </>
+                  <><span className="spinner" /> Menghentikan...</>
                 ) : (
-                  <>
-                    <span className="w-3 h-3 bg-white rounded-sm"></span>
-                    <span>STOP STREAM</span>
-                  </>
+                  <><span className="w-2.5 h-2.5 bg-white rounded-sm" /> Stop Stream</>
                 )}
               </button>
             )}
           </div>
         </div>
 
-        {/* Info */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Cara Menggunakan:</h3>
-          <ol className="text-xs text-gray-500 space-y-1 list-decimal list-inside">
-            <li>Buka YouTube Studio → Settings → Stream</li>
-            <li>Copy Stream Key</li>
-            <li>Pilih video yang ingin di-stream</li>
-            <li>Paste Stream Key di form above</li>
-            <li>Klik &quot;MULAI LIVE STREAM&quot;</li>
-            <li>Video akan terus berputar (looping) di YouTube</li>
-            <li>Klik &quot;STOP STREAM&quot; untuk menghentikan</li>
-          </ol>
-        </div>
+        <div className="space-y-6">
+          {/* Status: panel gelap bergaya banner landing page */}
+          <div className="panel-dark p-6 sm:p-8">
+            <span className="pointer-events-none absolute -top-10 left-[40%] w-14 h-[160%] rotate-[35deg] bg-gradient-to-b from-transparent via-blue-200/15 to-transparent blur-xl" aria-hidden="true" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-sm font-bold text-amber-50">Status Siaran</span>
+                {!status.isStreaming ? (
+                  <span className="badge bg-white/10 text-slate-300">Offline</span>
+                ) : isAnyReconnecting ? (
+                  <span className="badge bg-amber-400 text-amber-950">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-950 animate-ping" /> Menyambung ulang
+                  </span>
+                ) : (
+                  <span className="badge bg-red-500 text-white">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> LIVE
+                  </span>
+                )}
+              </div>
 
-        {/* Info FFmpeg */}
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-blue-700 text-sm">
-            <strong>Catatan:</strong> FFmpeg sudah included dalam project ini. Tidak perlu install FFmpeg secara manual di server.
-          </p>
+              <p className="text-xs text-slate-400 mb-1">Durasi live</p>
+              <p className={`font-mono text-4xl font-bold mb-6 ${status.isStreaming ? 'text-amber-50' : 'text-slate-600'}`}>
+                {formatDuration(streamDuration)}
+              </p>
+
+              {status.isStreaming ? (
+                status.streams.map((stream, idx) => (
+                  <dl key={idx} className="space-y-2 text-sm">
+                    <div className="flex justify-between gap-4"><dt className="text-slate-400">Video</dt><dd className="text-white font-medium truncate" title={stream.videoName}>{stream.videoName}</dd></div>
+                    <div className="flex justify-between gap-4"><dt className="text-slate-400">Mulai</dt><dd className="text-white">{new Date(stream.startedAt).toLocaleString('id-ID')}</dd></div>
+                    <div className="flex justify-between gap-4"><dt className="text-slate-400">Stream key</dt><dd className="text-white font-mono">{stream.streamKey}</dd></div>
+                    {stream.isReconnecting && (
+                      <p className="pt-2 text-amber-300 font-semibold">
+                        Koneksi terputus, mencoba menyambung ulang ({stream.reconnectAttempts || 1}/10)
+                      </p>
+                    )}
+                  </dl>
+                ))
+              ) : (
+                <p className="text-sm text-slate-400">Belum ada siaran berjalan. Lengkapi pengaturan lalu klik Mulai Live Stream.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Panduan */}
+          <div className="card p-6">
+            <p className="eyebrow mb-1">Panduan</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Cara Menggunakan</h3>
+            <ol className="space-y-3">
+              {[
+                'Buka YouTube Studio → Settings → Stream, lalu salin Stream Key.',
+                'Pilih video yang ingin disiarkan.',
+                'Tempel Stream Key di formulir.',
+                'Klik Mulai Live Stream. Video akan terus berputar (looping).',
+                'Klik Stop Stream untuk menghentikan.',
+              ].map((step, i) => (
+                <li key={i} className="flex gap-3 text-sm text-slate-600">
+                  <span className="w-6 h-6 shrink-0 rounded-full bg-blue-600 text-white text-xs font-semibold flex items-center justify-center shadow-md shadow-blue-600/30">
+                    {i + 1}
+                  </span>
+                  <span className="pt-0.5">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AuthShell from '@/components/layout/AuthShell';
+import PasswordInput from '@/components/ui/PasswordInput';
 
 export default function SetupPage() {
   const router = useRouter();
@@ -23,7 +25,7 @@ export default function SetupPage() {
         }
       } catch (err) {
         console.error(err);
-        setError('Failed to check setup status');
+        setError('Gagal memeriksa status setup');
         setLoading(false);
       }
     };
@@ -59,70 +61,51 @@ export default function SetupPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-gray-900">Loading setup...</div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-blue-600">
+        <span className="spinner w-8 h-8" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to MediaFlow</h1>
-          <p className="text-gray-500">Create your initial Admin account</p>
+    <AuthShell
+      eyebrow="Setup Pertama"
+      title="Buat Akun Admin"
+      description="Akun ini menjadi admin utama untuk mengelola pengguna dan masa sewa."
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label htmlFor="username" className="label">Username admin</label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="input"
+            placeholder="Pilih username"
+            required
+            minLength={3}
+          />
         </div>
 
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                Admin Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Choose a username"
-                required
-                minLength={3}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Admin Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Choose a password"
-                required
-                minLength={6}
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-2 px-4 mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
-            >
-              {submitting ? 'Creating Admin...' : 'Complete Setup'}
-            </button>
-          </form>
+        <div>
+          <label htmlFor="password" className="label">Password admin</label>
+          <PasswordInput
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Minimal 6 karakter"
+            required
+            minLength={6}
+          />
         </div>
-      </div>
-    </div>
+
+        {error && <div className="alert-error">{error}</div>}
+
+        <button type="submit" disabled={submitting} className="btn-primary w-full py-3">
+          {submitting ? <><span className="spinner w-4 h-4" /> Membuat admin...</> : 'Selesaikan Setup'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

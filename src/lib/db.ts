@@ -60,6 +60,11 @@ function migrateDb(db: Database.Database) {
   if (!userColumns.includes('expires_at')) {
     db.exec('ALTER TABLE users ADD COLUMN expires_at TEXT');
   }
+
+  // Waktu sandi terakhir diganti (ISO UTC). Token login yang dibuat sebelum waktu ini ditolak.
+  if (!userColumns.includes('password_changed_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN password_changed_at TEXT');
+  }
 }
 
 export interface UserRecord {
@@ -67,6 +72,8 @@ export interface UserRecord {
   username: string;
   created_at: string;
   expires_at: string | null;
+  /** Hanya diisi oleh getUserById (dipakai untuk mengecek token login). */
+  password_changed_at?: string | null;
 }
 
 export function getUserByUsername(username: string) {
@@ -87,7 +94,7 @@ export function getAllUsers(): UserRecord[] {
 
 export function getUserById(id: number): UserRecord | undefined {
   const db = getDb();
-  return db.prepare('SELECT id, username, created_at, expires_at FROM users WHERE id = ?').get(id) as
+  return db.prepare('SELECT id, username, created_at, expires_at, password_changed_at FROM users WHERE id = ?').get(id) as
     | UserRecord
     | undefined;
 }
@@ -96,6 +103,25 @@ export function getUserById(id: number): UserRecord | undefined {
 export function setUserExpiry(id: number, expiresAt: string | null) {
   const db = getDb();
   db.prepare('UPDATE users SET expires_at = ? WHERE id = ?').run(expiresAt, id);
+}
+
+export function getPasswordHashById(id: number): string | undefined {
+  const db = getDb();
+  const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(id) as { password_hash: string } | undefined;
+  return row?.password_hash;
+}
+
+/**
+ * Ganti sandi dan catat waktunya. Semua token login lama milik user ini otomatis
+ * tidak berlaku lagi (lihat getCurrentUser di lib/auth.ts).
+ */
+export function setUserPassword(id: number, passwordHash: string) {
+  const db = getDb();
+  db.prepare('UPDATE users SET password_hash = ?, password_changed_at = ? WHERE id = ?').run(
+    passwordHash,
+    new Date().toISOString(),
+    id
+  );
 }
 
 export function deleteUser(id: number) {

@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import PageHeader from '@/components/ui/PageHeader';
+import Icon, { ICONS } from '@/components/ui/Icon';
+import PasswordInput from '@/components/ui/PasswordInput';
+import { ResetPasswordDialog, ChangeOwnPasswordDialog } from '@/components/admin/PasswordDialogs';
 
 interface LiveInfo {
   videoName: string;
@@ -106,7 +110,7 @@ function platformName(host: string): string {
 
 function LiveStatus({ live, now }: { live: LiveInfo | null; now: number }) {
   if (!live) {
-    return <span className="text-sm text-gray-500">Offline</span>;
+    return <span className="badge bg-slate-100 text-slate-500">Offline</span>;
   }
 
   const duration = formatDuration((now - new Date(live.startedAt).getTime()) / 1000);
@@ -114,23 +118,23 @@ function LiveStatus({ live, now }: { live: LiveInfo | null; now: number }) {
   if (live.isReconnecting) {
     return (
       <div className="space-y-1">
-        <span className="inline-flex items-center gap-2 px-2 py-0.5 text-xs font-semibold bg-yellow-100 text-yellow-700 rounded-full border border-yellow-300">
-          <span className="w-2 h-2 bg-yellow-400 rounded-full animate-ping"></span>
+        <span className="badge bg-amber-50 text-amber-700">
+          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
           Menyambung ulang ({live.reconnectAttempts}/10)
         </span>
-        <p className="text-xs text-gray-500 truncate max-w-xs" title={live.videoName}>{live.videoName}</p>
+        <p className="text-xs text-slate-400 truncate max-w-xs" title={live.videoName}>{live.videoName}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-1">
-      <span className="inline-flex items-center gap-2 px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600 rounded-full border border-red-300">
-        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+      <span className="badge bg-red-500 text-white">
+        <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
         LIVE · {duration}
       </span>
-      <p className="text-xs text-gray-700 truncate max-w-xs" title={live.videoName}>{live.videoName}</p>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-slate-700 truncate max-w-xs" title={live.videoName}>{live.videoName}</p>
+      <p className="text-xs text-slate-400">
         ke {platformName(live.destination)} · key {live.streamKey}
       </p>
     </div>
@@ -139,12 +143,12 @@ function LiveStatus({ live, now }: { live: LiveInfo | null; now: number }) {
 
 function SubscriptionStatus({ user, now }: { user: User; now: number }) {
   if (user.id === MAIN_ADMIN_ID) {
-    return <span className="text-sm text-gray-500">Selalu aktif</span>;
+    return <span className="badge bg-blue-50 text-blue-700">Selalu aktif</span>;
   }
 
   if (!user.expires_at) {
     return (
-      <span className="inline-flex px-2 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+      <span className="badge bg-blue-50 text-blue-700">
         Tanpa batas
       </span>
     );
@@ -155,10 +159,10 @@ function SubscriptionStatus({ user, now }: { user: User; now: number }) {
   if (user.isExpired || remaining <= 0) {
     return (
       <div className="space-y-1">
-        <span className="inline-flex px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded-full border border-gray-300">
+        <span className="badge bg-slate-200 text-slate-600">
           Nonaktif
         </span>
-        <p className="text-xs text-gray-500">Berakhir {formatDateTime(user.expires_at)}</p>
+        <p className="text-xs text-slate-400">Berakhir {formatDateTime(user.expires_at)}</p>
       </div>
     );
   }
@@ -167,13 +171,11 @@ function SubscriptionStatus({ user, now }: { user: User; now: number }) {
   return (
     <div className="space-y-1">
       <span
-        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full border ${
-          soon ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-green-50 text-green-700 border-green-200'
-        }`}
+        className={`badge ${soon ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}
       >
         {soon ? 'Segera habis' : 'Aktif'} · sisa {formatRemaining(remaining)}
       </span>
-      <p className="text-xs text-gray-500">s/d {formatDateTime(user.expires_at)}</p>
+      <p className="text-xs text-slate-400">s/d {formatDateTime(user.expires_at)}</p>
     </div>
   );
 }
@@ -234,67 +236,67 @@ function ExpiryDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+    <div className="fixed inset-0 bg-[#060b24]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="card w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 pb-0 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Atur Masa Sewa</h2>
-            <p className="text-sm text-gray-500">Akun: {user.username}</p>
+            <p className="eyebrow mb-1">Akun {user.username}</p>
+            <h2 className="text-2xl font-bold text-slate-800">Atur Masa Sewa</h2>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 text-xl leading-none" aria-label="Tutup">
-            ×
+          <button onClick={onClose} className="p-2 -m-2 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors" aria-label="Tutup">
+            <Icon d={ICONS.close} className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-4 space-y-5">
-          <div className="text-sm">
-            <span className="text-gray-500">Status sekarang: </span>
+        <div className="p-6 space-y-6">
+          <div className="text-sm flex items-start gap-2">
+            <span className="text-slate-500 pt-0.5">Status sekarang:</span>
             <SubscriptionStatus user={user} now={now} />
           </div>
 
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Perpanjang</p>
+            <p className="label">Perpanjang</p>
             <div className="grid grid-cols-4 gap-2">
               {EXTEND_OPTIONS.map((option) => (
                 <button
                   key={option.days}
                   onClick={() => extend(option.days)}
                   disabled={saving}
-                  className="py-2 bg-green-50 text-green-700 hover:bg-green-600 hover:text-white disabled:opacity-50 rounded border border-green-200 text-sm font-medium transition-colors"
+                  className="btn-soft-green px-2"
                 >
                   {option.label}
                 </button>
               ))}
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="hint">
               Dihitung dari batas sekarang, atau dari saat ini jika masa sewa sudah habis.
             </p>
           </div>
 
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Atur tanggal berakhir</p>
+            <p className="label">Atur tanggal berakhir</p>
             <div className="flex gap-2">
               <input
                 type="datetime-local"
                 value={customValue}
                 onChange={(e) => setCustomValue(e.target.value)}
-                className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="input flex-1"
               />
               <button
                 onClick={saveCustom}
                 disabled={saving || !customValue}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-md text-sm font-medium"
+                className="btn-primary"
               >
                 Simpan
               </button>
             </div>
           </div>
 
-          <div className="flex gap-2 pt-2 border-t border-gray-200">
+          <div className="flex gap-2 pt-5 border-t border-slate-100">
             <button
               onClick={() => save(null)}
               disabled={saving}
-              className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-900 rounded-md text-sm"
+              className="btn-secondary flex-1"
             >
               Tanpa batas
             </button>
@@ -306,14 +308,14 @@ function ExpiryDialog({
                 )
               }
               disabled={saving}
-              className="flex-1 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50 rounded-md border border-red-300 text-sm transition-colors"
+              className="btn-soft-red flex-1"
             >
               Nonaktifkan sekarang
             </button>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>
+            <div className="alert-error">{error}</div>
           )}
         </div>
       </div>
@@ -337,6 +339,10 @@ export default function AdminUsersPage() {
 
   const [expiryUserId, setExpiryUserId] = useState<number | null>(null);
   const expiryUser = users.find((user) => user.id === expiryUserId) ?? null;
+
+  // Dialog sandi: user lain = atur ulang oleh admin, admin utama = ganti sandi sendiri.
+  const [passwordUserId, setPasswordUserId] = useState<number | null>(null);
+  const passwordUser = users.find((user) => user.id === passwordUserId) ?? null;
 
   const [reloadKey, setReloadKey] = useState(0);
   const refreshUsers = () => setReloadKey((key) => key + 1);
@@ -465,197 +471,211 @@ export default function AdminUsersPage() {
       Date.parse(user.expires_at) - now <= EXPIRING_SOON_MS
   ).length;
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <button onClick={() => router.push('/browse')} className="text-xl font-bold text-gray-900 hover:text-gray-700">
-                MediaFlow
-              </button>
-              <span className="ml-4 text-gray-500 font-medium border-l border-gray-300 pl-4">Admin Dashboard</span>
-            </div>
-            <div>
-              <button onClick={() => router.push('/browse')} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-md transition-colors">
-                Kembali
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+  const activeCount = users.length - inactiveCount;
+  const stats = [
+    { label: 'Total akun', value: users.length, tone: 'bg-blue-50 text-blue-600', icon: ICONS.users },
+    { label: 'Sedang live', value: liveCount, tone: 'bg-red-50 text-red-600', icon: ICONS.live },
+    { label: 'Segera habis', value: expiringSoonCount, tone: 'bg-amber-50 text-amber-700', icon: ICONS.clock },
+    { label: 'Aktif / nonaktif', value: `${activeCount} / ${inactiveCount}`, tone: 'bg-slate-100 text-slate-600', icon: ICONS.shield },
+  ];
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manajemen Pengguna</h1>
-            {!loading && (
-              <p className="mt-1 text-sm text-gray-500">
-                {users.length} akun ·{' '}
-                {liveCount > 0 ? (
-                  <span className="text-red-600 font-medium">{liveCount} sedang live</span>
-                ) : (
-                  'tidak ada yang sedang live'
-                )}
-                {expiringSoonCount > 0 && (
-                  <> · <span className="text-yellow-700 font-medium">{expiringSoonCount} segera habis</span></>
-                )}
-                {inactiveCount > 0 && <> · {inactiveCount} nonaktif</>}
-              </p>
-            )}
-          </div>
+  return (
+    <>
+      <PageHeader
+        eyebrow="Admin"
+        title="Manajemen Pengguna"
+        description="Kelola akun penyewa, masa sewa, dan live yang sedang berjalan."
+        actions={
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium"
+            className={showAddForm ? 'btn-secondary' : 'btn-primary'}
           >
-            {showAddForm ? 'Batal' : '+ Tambah User'}
+            {showAddForm ? 'Batal' : <><Icon d={ICONS.plus} className="w-4 h-4" /> Tambah User</>}
           </button>
+        }
+      />
+
+      {!loading && !error && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {stats.map((stat) => (
+            <div key={stat.label} className="card p-5 flex items-center gap-4">
+              <span className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${stat.tone}`}>
+                <Icon d={stat.icon} className="w-5 h-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+                <p className="text-sm text-slate-400 truncate">{stat.label}</p>
+              </div>
+            </div>
+          ))}
         </div>
+      )}
 
-        {showAddForm && (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Tambah User Baru</h2>
-            <form onSubmit={handleAddUser} className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required minLength={3}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required minLength={6}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Masa sewa</label>
-                <select
-                  value={newPlan}
-                  onChange={(e) => setNewPlan(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  {NEW_USER_PLANS.map((plan) => (
-                    <option key={plan.value} value={plan.value}>{plan.label}</option>
-                  ))}
-                </select>
-                {newPlan === 'custom' && (
-                  <input
-                    type="datetime-local"
-                    value={newCustomExpiry}
-                    onChange={(e) => setNewCustomExpiry(e.target.value)}
-                    className="mt-2 w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    required
-                  />
-                )}
-                <p className="mt-1 text-xs text-gray-500">
-                  Setelah masa sewa habis, akun otomatis nonaktif dan live-nya dihentikan.
-                </p>
-              </div>
-              <button
-                type="submit"
-                disabled={addLoading}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-md font-medium"
+      {showAddForm && (
+        <div className="card p-6 sm:p-8 mb-8">
+          <h2 className="text-xl font-bold text-slate-800 mb-6">Tambah User Baru</h2>
+          <form onSubmit={handleAddUser} className="grid md:grid-cols-3 gap-5 items-start">
+            <div>
+              <label className="label">Username</label>
+              <input
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                className="input"
+                required minLength={3}
+              />
+            </div>
+            <div>
+              <label className="label">Password</label>
+              <PasswordInput
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required minLength={6}
+              />
+            </div>
+            <div>
+              <label className="label">Masa sewa</label>
+              <select
+                value={newPlan}
+                onChange={(e) => setNewPlan(e.target.value)}
+                className="input"
               >
-                {addLoading ? 'Menyimpan...' : 'Simpan User'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-gray-500">Memuat data user...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
-            {error}
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg overflow-x-auto border border-gray-200 shadow-sm">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="p-4 text-gray-700 font-medium">ID</th>
-                  <th className="p-4 text-gray-700 font-medium">Username</th>
-                  <th className="p-4 text-gray-700 font-medium">Masa Sewa</th>
-                  <th className="p-4 text-gray-700 font-medium">Status Live</th>
-                  <th className="p-4 text-gray-700 font-medium">Tanggal Dibuat</th>
-                  <th className="p-4 text-right text-gray-700 font-medium">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr
-                    key={user.id}
-                    className={`transition-colors ${
-                      user.live ? 'bg-red-50/70' : user.isExpired ? 'bg-gray-50 text-gray-500' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <td className="p-4 text-gray-900">#{user.id}</td>
-                    <td className="p-4 text-gray-900 font-medium">
-                      <div className="flex items-center gap-2">
-                        <span className={user.isExpired ? 'text-gray-500 line-through' : ''}>{user.username}</span>
-                        {user.id === MAIN_ADMIN_ID && (
-                          <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded-full border border-yellow-300">
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4"><SubscriptionStatus user={user} now={now} /></td>
-                    <td className="p-4"><LiveStatus live={user.live} now={now} /></td>
-                    <td className="p-4 text-gray-500 text-sm">{parseSqliteDate(user.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                    <td className="p-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {user.live && (
-                          <button
-                            onClick={() => handleStopLive(user)}
-                            disabled={stoppingId === user.id}
-                            className="px-3 py-1 bg-orange-50 text-orange-700 hover:bg-orange-600 hover:text-white disabled:opacity-50 disabled:cursor-wait rounded border border-orange-300 transition-colors text-sm whitespace-nowrap"
-                          >
-                            {stoppingId === user.id ? 'Menghentikan...' : 'Hentikan Live'}
-                          </button>
-                        )}
-                        {user.id !== MAIN_ADMIN_ID && (
-                          <button
-                            onClick={() => setExpiryUserId(user.id)}
-                            className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded border border-blue-200 transition-colors text-sm whitespace-nowrap"
-                          >
-                            Atur Sewa
-                          </button>
-                        )}
-                        {user.id !== MAIN_ADMIN_ID && (
-                          <button
-                            onClick={() => handleDelete(user.id)}
-                            className="px-3 py-1 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded border border-red-300 transition-colors text-sm"
-                          >
-                            Hapus
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                {NEW_USER_PLANS.map((plan) => (
+                  <option key={plan.value} value={plan.value}>{plan.label}</option>
                 ))}
-              </tbody>
-            </table>
-            {users.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
-                Tidak ada user ditemukan.
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+              </select>
+              {newPlan === 'custom' && (
+                <input
+                  type="datetime-local"
+                  value={newCustomExpiry}
+                  onChange={(e) => setNewCustomExpiry(e.target.value)}
+                  className="input mt-2"
+                  required
+                />
+              )}
+            </div>
+            <div className="md:col-span-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <p className="text-xs text-slate-400">
+                Setelah masa sewa habis, akun otomatis nonaktif dan live-nya dihentikan.
+              </p>
+              <button type="submit" disabled={addLoading} className="btn-primary">
+                {addLoading ? <><span className="spinner w-4 h-4" /> Menyimpan...</> : 'Simpan User'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-16 text-blue-600">
+          <span className="spinner w-10 h-10" />
+          <p className="mt-4 text-slate-500">Memuat data user...</p>
+        </div>
+      ) : error ? (
+        <div className="alert-error">{error}</div>
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="text-xs uppercase tracking-wider text-slate-400">
+                <th className="px-6 py-4 font-semibold">ID</th>
+                <th className="px-6 py-4 font-semibold">Username</th>
+                <th className="px-6 py-4 font-semibold">Masa Sewa</th>
+                <th className="px-6 py-4 font-semibold">Status Live</th>
+                <th className="px-6 py-4 font-semibold">Tanggal Dibuat</th>
+                <th className="px-6 py-4 font-semibold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map((user) => (
+                <tr
+                  key={user.id}
+                  className={`transition-colors ${
+                    user.live ? 'bg-red-50/50' : user.isExpired ? 'bg-slate-50/70 text-slate-400' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <td className="px-6 py-4 text-slate-400 font-mono text-sm">#{user.id}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="w-9 h-9 shrink-0 rounded-full bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center uppercase">
+                        {user.username.charAt(0)}
+                      </span>
+                      <span className={`font-semibold ${user.isExpired ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{user.username}</span>
+                      {user.id === MAIN_ADMIN_ID && (
+                        <span className="badge bg-amber-50 text-amber-700">Admin</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4"><SubscriptionStatus user={user} now={now} /></td>
+                  <td className="px-6 py-4"><LiveStatus live={user.live} now={now} /></td>
+                  <td className="px-6 py-4 text-slate-400 text-sm whitespace-nowrap">{parseSqliteDate(user.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      {user.id === MAIN_ADMIN_ID && (
+                        <button
+                          onClick={() => setPasswordUserId(user.id)}
+                          className="btn-soft-blue btn-sm whitespace-nowrap"
+                        >
+                          Ganti Sandi
+                        </button>
+                      )}
+                      {user.live && (
+                        <button
+                          onClick={() => handleStopLive(user)}
+                          disabled={stoppingId === user.id}
+                          className="btn-soft-orange btn-sm whitespace-nowrap disabled:cursor-wait"
+                        >
+                          {stoppingId === user.id ? 'Menghentikan...' : 'Hentikan Live'}
+                        </button>
+                      )}
+                      {user.id !== MAIN_ADMIN_ID && (
+                        <button
+                          onClick={() => setExpiryUserId(user.id)}
+                          className="btn-soft-blue btn-sm whitespace-nowrap"
+                        >
+                          Atur Sewa
+                        </button>
+                      )}
+                      {user.id !== MAIN_ADMIN_ID && (
+                        <button
+                          onClick={() => setPasswordUserId(user.id)}
+                          className="btn-soft-blue btn-sm whitespace-nowrap"
+                        >
+                          Reset Sandi
+                        </button>
+                      )}
+                      {user.id !== MAIN_ADMIN_ID && (
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="btn-soft-red btn-sm"
+                        >
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {users.length === 0 && (
+            <div className="p-8 text-center text-slate-400">
+              Tidak ada user ditemukan.
+            </div>
+          )}
+        </div>
+      )}
+
+      {passwordUser && (passwordUser.id === MAIN_ADMIN_ID ? (
+        <ChangeOwnPasswordDialog onClose={() => setPasswordUserId(null)} />
+      ) : (
+        <ResetPasswordDialog
+          key={passwordUser.id}
+          userId={passwordUser.id}
+          username={passwordUser.username}
+          onClose={() => setPasswordUserId(null)}
+        />
+      ))}
 
       {expiryUser && (
         <ExpiryDialog
@@ -669,6 +689,6 @@ export default function AdminUsersPage() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

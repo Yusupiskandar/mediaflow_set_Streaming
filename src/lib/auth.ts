@@ -23,6 +23,16 @@ function getJwtSecret(): string {
   return secret;
 }
 
+export const PASSWORD_MIN_LENGTH = 6;
+
+/** Aturan sandi yang sama untuk buat user, reset, dan ganti sandi. Mengembalikan pesan error atau null. */
+export function validatePassword(password: unknown): string | null {
+  if (typeof password !== 'string' || password.length === 0) return 'Sandi harus diisi';
+  if (password.length < PASSWORD_MIN_LENGTH) return `Sandi minimal ${PASSWORD_MIN_LENGTH} karakter`;
+  if (password.length > 128) return 'Sandi maksimal 128 karakter';
+  return null;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
@@ -35,10 +45,11 @@ export function generateToken(payload: AuthPayload): string {
   return jwt.sign(payload, getJwtSecret(), { expiresIn: TOKEN_MAX_AGE });
 }
 
-export function verifyToken(token: string): AuthPayload | null {
+/** `issuedAt` = waktu token dibuat (detik), dipakai untuk menolak token yang lebih tua dari sandi terbaru. */
+export function verifyToken(token: string): (AuthPayload & { issuedAt?: number }) | null {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as AuthPayload;
-    return { userId: decoded.userId, username: decoded.username };
+    const decoded = jwt.verify(token, getJwtSecret()) as AuthPayload & { iat?: number };
+    return { userId: decoded.userId, username: decoded.username, issuedAt: decoded.iat };
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) return null;
     throw error;
@@ -60,6 +71,13 @@ export async function getCurrentUser(): Promise<AuthPayload | null> {
 
   const user = getUserById(payload.userId);
   if (!user) return null;
+
+  // Sandi sudah diganti setelah token ini dibuat = sesi lama dikeluarkan.
+  // Dibandingkan per detik karena `iat` di token berpresisi detik.
+  if (user.password_changed_at) {
+    const changedAtSec = Math.floor(Date.parse(user.password_changed_at) / 1000);
+    if (payload.issuedAt === undefined || payload.issuedAt < changedAtSec) return null;
+  }
 
   // Masa sewa habis = akun nonaktif, semua akses langsung terputus.
   if (isAccountExpired(user)) return null;

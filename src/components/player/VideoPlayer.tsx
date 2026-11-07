@@ -269,7 +269,7 @@ export default function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className="relative bg-black rounded-lg overflow-hidden"
+      className="relative bg-black rounded-2xl overflow-hidden shadow-[0_20px_40px_-12px_rgba(30,58,138,0.35)]"
       onMouseMove={() => setShowControls(true)}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
@@ -282,11 +282,15 @@ export default function VideoPlayer({
           playsInline
         />
       ) : (
-        <div className="w-full aspect-video flex items-center justify-center bg-gray-900">
+        <div className="w-full aspect-video flex items-center justify-center bg-[#060b24]">
           <audio ref={mediaRef as React.RefObject<HTMLAudioElement>} src={streamUrl} />
           <div className="text-center">
-            <div className="text-6xl mb-4">🎵</div>
-            <p className="text-white text-xl">{fileName}</p>
+            <div className="mx-auto mb-5 w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/40">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-9 h-9" aria-hidden="true">
+                <path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+              </svg>
+            </div>
+            <p className="text-amber-50 text-xl font-semibold px-4">{fileName}</p>
           </div>
         </div>
       )}
@@ -299,14 +303,14 @@ export default function VideoPlayer({
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
           <div
             ref={progressRef}
-            className="w-full h-2 bg-gray-600 rounded-full cursor-pointer mb-4"
+            className="w-full h-1.5 bg-white/25 rounded-full cursor-pointer mb-4"
             onClick={handleSeek}
           >
             <div
-              className="h-full bg-blue-500 rounded-full relative"
+              className="h-full bg-blue-600 rounded-full relative"
               style={{ width: `${(currentTime / duration) * 100}%` }}
             >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow" />
             </div>
           </div>
 
@@ -367,7 +371,7 @@ export default function VideoPlayer({
                       const sub = subtitles.find((s) => s.id === e.target.value) || null;
                       setActiveSubtitle(sub);
                     }}
-                    className="bg-gray-700 text-white text-sm rounded px-2 py-1"
+                    className="bg-white/15 text-white text-sm rounded-lg px-2 py-1 [&>option]:text-slate-800"
                   >
                     <option value="">Subtitle: OFF</option>
                     {subtitles.map((sub) => (

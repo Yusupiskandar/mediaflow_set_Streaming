@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
+  --background: #f8fafc;
+  --foreground: #1e293b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-google-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-google-sans-code), ui-monospace, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
 
 * {
@@ -35,4 +35,136 @@ body {
 *::-webkit-scrollbar-thumb {
   background-color: #d1d5db;
   border-radius: 4px;
+}
+
+/*
+ * Efek kartu melayang di landing page.
+ * .float-card naik-turun, .float-shadow (bayangan di lantai) mengecil dan memudar
+ * saat kartu naik. Keduanya memakai durasi dan delay yang sama agar selalu sinkron.
+ */
+@keyframes float-card {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+}
+
+@keyframes float-shadow {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(0.82); opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .float-card,
+  .float-shadow {
+    animation-duration: 6s;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+    animation-iteration-count: infinite;
+    animation-delay: var(--float-delay, 0s);
+    will-change: transform;
+  }
+  .float-card { animation-name: float-card; }
+  .float-shadow { animation-name: float-shadow; }
+}
+
+.float-shadow { opacity: 0.55; }
+
+/* Kolom tampilan layar di banner CTA yang bergulir pelan (isi diulang 2x, jadi -50% = satu putaran). */
+@keyframes cta-scroll-up {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, -50%, 0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cta-scroll-up,
+  .cta-scroll-down {
+    animation: cta-scroll-up 24s linear infinite;
+    will-change: transform;
+  }
+  .cta-scroll-down { animation-direction: reverse; }
+}
+
+/*
+ * Gaya bersama aplikasi. Acuannya landing page (src/app/page.tsx):
+ * kartu putih rounded-2xl berbayang biru lembut, tombol biru, input bertepi bulat.
+ */
+@utility card {
+  @apply rounded-2xl bg-white shadow-[0_10px_30px_-12px_rgba(30,58,138,0.15)];
+}
+@utility card-hover {
+  @apply transition-[transform,box-shadow] duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(30,58,138,0.25)];
+}
+@utility panel-dark {
+  @apply relative overflow-hidden rounded-3xl bg-[#060b24] text-white;
+}
+
+@utility eyebrow {
+  @apply text-sm font-semibold text-blue-600;
+}
+@utility page-title {
+  @apply text-3xl md:text-4xl font-bold leading-snug text-slate-800;
+}
+@utility label {
+  @apply block text-sm font-medium text-slate-700 mb-1.5;
+}
+@utility hint {
+  @apply mt-1.5 text-xs text-slate-400;
+}
+
+@utility input {
+  @apply w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 transition-colors focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60 disabled:cursor-not-allowed;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn text-white bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-600/30;
+}
+@utility btn-secondary {
+  @apply btn text-slate-700 bg-white border border-slate-200 hover:bg-slate-50;
+}
+@utility btn-dark {
+  @apply btn text-white bg-[#060b24] hover:bg-slate-800;
+}
+@utility btn-live {
+  @apply btn text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-600/30;
+}
+@utility btn-sm {
+  /* Pakai bersama btn-*: ukuran dibuat !important supaya selalu menang. */
+  @apply px-3! py-1.5! rounded-lg! text-xs!;
+}
+@utility btn-soft-blue {
+  @apply btn text-blue-700 bg-blue-50 hover:bg-blue-600 hover:text-white;
+}
+@utility btn-soft-red {
+  @apply btn text-red-600 bg-red-50 hover:bg-red-600 hover:text-white;
+}
+@utility btn-soft-orange {
+  @apply btn text-orange-700 bg-orange-50 hover:bg-orange-600 hover:text-white;
+}
+@utility btn-soft-green {
+  @apply btn text-green-700 bg-green-50 hover:bg-green-600 hover:text-white;
+}
+
+@utility alert {
+  @apply p-3.5 rounded-xl text-sm;
+}
+@utility alert-error {
+  @apply alert bg-red-50 text-red-700;
+}
+@utility alert-success {
+  @apply alert bg-green-50 text-green-700;
+}
+@utility alert-warning {
+  @apply alert bg-amber-50 text-amber-800;
+}
+@utility alert-info {
+  @apply alert bg-blue-50 text-blue-700;
+}
+
+@utility badge {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+}
+
+@utility spinner {
+  @apply inline-block w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin;
 }

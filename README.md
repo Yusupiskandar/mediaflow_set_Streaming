@@ -19,12 +19,16 @@ cp .env.example .env.local   # lalu isi JWT_SECRET
 npm run dev
 ```
 
-Buka http://localhost:3003. Saat pertama kali dijalankan, halaman `/setup` meminta pembuatan akun admin.
+Buka http://localhost:3003 untuk melihat landing page (tombol **Sewa** dan **Login**). Isi `SEWA_URL` di `.env.local` dengan link kontak (mis. WhatsApp) supaya tombol Sewa mengarah ke sana. Saat pertama kali dijalankan, halaman `/setup` meminta pembuatan akun admin.
 
 Semua data runtime ada di folder `data/` dan tidak ikut ke git:
 
 - `data/media/users/<userId>/`: file video/audio milik tiap akun (folder induk bisa diubah lewat `MEDIA_DIR`). Setiap akun hanya bisa melihat, memutar, upload, dan live stream file di foldernya sendiri.
 - `data/mediaflow.db`: database SQLite, dibuat otomatis (bisa diubah lewat `DB_PATH`)
+
+## Gaya tampilan
+
+Acuan gaya adalah landing page (`src/app/page.tsx`). Class bersama seperti `card`, `btn-primary`, `input`, `eyebrow`, `page-title`, dan `alert-error` didefinisikan sebagai `@utility` di `src/app/globals.css`. Pakai class ini di halaman baru agar tampilannya konsisten.
 
 ## Struktur
 
@@ -33,23 +37,26 @@ data/                (runtime, di-ignore) database + file media
 docs/                dokumen perencanaan
 src/
   app/
+    page.tsx         / : landing page promosi (Sewa + Login)
     (auth)/          route group, tidak memengaruhi URL
       login/         /login
       setup/         /setup: pembuatan admin pertama
-    (main)/          halaman yang butuh login
+    (main)/          halaman yang butuh login (layout.tsx: header bersama)
       browse/        /browse: daftar folder dan file media
       player/[fileId]/ /player/:id: pemutar video/audio + subtitle
       stream/        /stream: kontrol live stream per akun
       admin/users/   /admin/users: kelola user
     api/
-      auth/          login, register, me, setup-status
-      admin/users/   CRUD user (khusus admin)
+      auth/          login, register, me, setup-status, change-password
+      admin/users/   CRUD user, masa sewa, reset sandi, stop live (khusus admin)
       files/         daftar file, streaming, subtitle, upload chunk
       folders/       daftar folder
       resume/        simpan/ambil posisi terakhir menonton
       stream/        start, stop, status live stream
       thumbnail/     thumbnail video via ffmpeg
   components/
+    ui/              Logo, Icon, PageHeader (dipakai semua halaman)
+    layout/          AppHeader (header setelah login), AuthShell (login/setup)
     auth/            LoginForm
     media/           FileBrowser, UploadDialog
     player/          VideoPlayer, SubtitleOverlay

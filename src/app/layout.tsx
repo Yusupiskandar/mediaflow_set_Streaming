@@ -1,15 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Google_Sans, Google_Sans_Code } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const googleSans = Google_Sans({
+  variable: "--font-google-sans",
   subsets: ["latin"],
+  // Next.js belum punya metrik fallback untuk Google Sans; matikan agar tidak muncul warning.
+  adjustFontFallback: false,
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const googleSansCode = Google_Sans_Code({
+  variable: "--font-google-sans-code",
   subsets: ["latin"],
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "monospace"],
 });
 
 export const metadata: Metadata = {
@@ -25,9 +30,9 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${googleSans.variable} ${googleSansCode.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">{children}</body>
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-800">{children}</body>
     </html>
   );
 }

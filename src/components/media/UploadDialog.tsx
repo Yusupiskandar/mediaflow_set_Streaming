@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Icon, { ICONS } from '@/components/ui/Icon';
 
 interface UploadDialogProps {
   currentDir: string;
@@ -89,25 +90,28 @@ export default function UploadDialog({ currentDir, onClose, onUploadComplete }: 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-lg shadow-xl">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Upload File</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-900"
-            >
-              ✕
-            </button>
+    <div className="fixed inset-0 bg-[#060b24]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-lg shadow-2xl">
+        <div className="p-6 pb-0 flex items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow mb-1">Upload</p>
+            <h2 className="text-2xl font-bold text-slate-800">Tambah Media</h2>
           </div>
+          <button
+            onClick={onClose}
+            disabled={uploading}
+            className="p-2 -m-2 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+            aria-label="Tutup"
+          >
+            <Icon d={ICONS.close} className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-6">
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+            className="group rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
           >
             <input
@@ -118,34 +122,39 @@ export default function UploadDialog({ currentDir, onClose, onUploadComplete }: 
               onChange={handleFileSelect}
               className="hidden"
             />
-            <div className="text-4xl mb-4">📤</div>
-            <p className="text-gray-700 mb-2">
+            <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/40 group-hover:-translate-y-0.5 transition-transform">
+              <Icon d={ICONS.upload} className="w-6 h-6" />
+            </div>
+            <p className="font-semibold text-slate-800 mb-1">
               Drag & drop file atau klik untuk memilih
             </p>
-            <p className="text-gray-500 text-sm">
-              Video: MP4, MKV, AVI, WebM | Audio: MP3, FLAC, WAV
+            <p className="text-sm text-slate-400">
+              Video: MP4, MKV, AVI, WebM · Audio: MP3, FLAC, WAV
             </p>
           </div>
 
           {files.length > 0 && (
-            <div className="mt-4 space-y-2">
+            <div className="mt-5 space-y-2">
               {files.map((file) => (
-                <div key={file.name} className="flex items-center justify-between p-3 bg-gray-100 rounded">
+                <div key={file.name} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+                  <span className="w-9 h-9 shrink-0 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <Icon d={ICONS.play} className="w-4 h-4" />
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-gray-900 truncate">{file.name}</p>
-                    <p className="text-gray-500 text-sm">
+                    <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
+                    <p className="text-xs text-slate-400">
                       {(file.size / (1024 * 1024)).toFixed(2)} MB
                     </p>
                   </div>
                   {progress[file.name] !== undefined && (
-                    <div className="ml-4 w-24">
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="w-24">
+                      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-blue-500 transition-all"
+                          className="h-full bg-blue-600 rounded-full transition-all"
                           style={{ width: `${progress[file.name]}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-1 text-right">
+                      <p className="text-xs text-slate-500 mt-1 text-right">
                         {Math.round(progress[file.name])}%
                       </p>
                     </div>
@@ -155,27 +164,15 @@ export default function UploadDialog({ currentDir, onClose, onUploadComplete }: 
             </div>
           )}
 
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="alert-error mt-4">{error}</div>}
         </div>
 
-        <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            disabled={uploading}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900 rounded-md transition-colors"
-          >
+        <div className="px-6 pb-6 flex justify-end gap-3">
+          <button onClick={onClose} disabled={uploading} className="btn-secondary">
             Batal
           </button>
-          <button
-            onClick={handleUpload}
-            disabled={files.length === 0 || uploading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white rounded-md transition-colors"
-          >
-            {uploading ? 'Mengupload...' : 'Upload'}
+          <button onClick={handleUpload} disabled={files.length === 0 || uploading} className="btn-primary">
+            {uploading ? <><span className="spinner w-4 h-4" /> Mengupload...</> : 'Upload'}
           </button>
         </div>
       </div>
